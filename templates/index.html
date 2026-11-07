@@ -1,0 +1,2691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ config.get('nombre_negocio', 'AUTOREPUESTOS MERP') }} - Sistema de Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+  <!-- CABECERA INSTITUCIONAL -->
+  <header class="bg-blue-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🚗🏍️</span>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">{{ config.get('nombre_negocio', 'AUTOREPUESTOS MERP') }}</h1>
+          <p class="text-xs text-blue-200">NIT: {{ config.get('nit_negocio', '88208896-7') }} | {{ config.get('direccion_negocio') }} | TEL: {{ config.get('telefono_negocio') }}</p>
+        </div>
+      </div>
+      <div class="text-right text-xs text-blue-200 flex flex-col sm:items-end gap-1.5">
+        <p>{{ config.get('ciudad_negocio', 'Villa del Rosario - Cúcuta') }} | Fecha: <strong>{{ current_date }}</strong></p>
+        <div class="flex flex-wrap gap-2 mt-0.5">
+          <a href="{{ url_for('descargar_copia_seguridad') }}" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl shadow transition-all flex items-center gap-1.5 text-xs cursor-pointer" title="Descargar respaldo de base de datos">
+            <span>💾</span> Copia de Seguridad
+          </a>
+          <a href="{{ url_for('descargar_corte_gerencial_excel') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition-all flex items-center gap-1.5 text-xs cursor-pointer" title="Descargar balance con gráficos">
+            <span>📑</span> Finalizar Corte (Excel)
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SALUDO ESPECIAL A DAYANA RUJANO -->
+  <div class="max-w-7xl mx-auto px-4 mt-3">
+    <div class="bg-gradient-to-r from-blue-900 to-indigo-800 text-white p-3.5 rounded-2xl shadow flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">✨</span>
+        <div>
+          <h2 class="text-sm font-bold">¡Hola, {{ config.get('encargada_nombre', 'Dayana Rujano') }}! ☀️</h2>
+          <p class="text-xs text-blue-200">Bienvenida a {{ config.get('nombre_negocio', 'AUTOREPUESTOS MERP') }}. ¡Que tengas un excelente y bendecido día de trabajo!</p>
+        </div>
+      </div>
+      <div class="text-right text-[11px] text-blue-200 hidden sm:block">
+        <span>UVT Vigente: <strong>${{ "{:,.0f}".format(config.get('valor_uvt', 52374)|float) }}</strong> (Base 10 UVT: ${{ "{:,.0f}".format(tope_uvt_pesos) }} COP)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENSAJES FLASH -->
+  <div class="max-w-7xl mx-auto px-4 mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% set latest_category, latest_message = messages[-1] %}
+        <div id="flashAlert" class="p-3.5 mb-2 rounded-xl text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm flex items-center justify-between">
+          <span>✅ {{ latest_message }}</span>
+          <button onclick="document.getElementById('flashAlert').style.display='none'" class="text-emerald-900 font-bold hover:text-red-600 px-2 cursor-pointer">✕</button>
+        </div>
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- NAVEGACIÓN POR PESTAÑAS (12 PESTAÑAS) -->
+  <nav class="max-w-7xl mx-auto px-4 mt-4">
+    <div class="flex flex-wrap gap-2 border-b border-slate-300 pb-3">
+      <button onclick="cambiarPestaña('pestaña1')" id="btn-pestaña1" class="tab-btn bg-blue-900 text-white font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>📥</span> 1. Compras
+      </button>
+      <button onclick="cambiarPestaña('pestaña2')" id="btn-pestaña2" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>📦</span> 2. Inventario
+      </button>
+      <button onclick="cambiarPestaña('pestaña3')" id="btn-pestaña3" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>🧾</span> 3. Ventas & Servicios
+      </button>
+      <button onclick="cambiarPestaña('pestañaMejores')" id="btn-pestañaMejores" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>🏆</span> 4. Mejores Prod.
+      </button>
+      <button onclick="cambiarPestaña('pestaña8')" id="btn-pestaña8" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>💱</span> 5. Presupuestos
+      </button>
+      <button onclick="cambiarPestaña('pestaña4')" id="btn-pestaña4" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>📊</span> 6. Cobranzas
+      </button>
+      <button onclick="cambiarPestaña('pestaña5')" id="btn-pestaña5" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>💳</span> 7. Cuentas x Pagar
+      </button>
+      <button onclick="cambiarPestaña('pestaña6')" id="btn-pestaña6" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>📑</span> 8. Retenciones
+      </button>
+      <button onclick="cambiarPestaña('pestaña7')" id="btn-pestaña7" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>📦📋</span> 9. Pedidos
+      </button>
+      <button onclick="cambiarPestaña('pestaña10')" id="btn-pestaña10" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>🔄</span> 10. Reclamos
+      </button>
+      <button onclick="cambiarPestaña('pestaña11')" id="btn-pestaña11" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>💰</span> 11. Arqueo Caja
+      </button>
+      <button onclick="cambiarPestaña('pestaña12')" id="btn-pestaña12" class="tab-btn bg-white hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl shadow text-xs sm:text-sm flex items-center gap-1 cursor-pointer">
+        <span>🏛️</span> 12. DIAN & Tareas
+      </button>
+    </div>
+  </nav>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-6">
+    
+    <!-- PESTAÑA 1: ENTRADA / COMPRAS (CON RETEFUENTE 2.5%) -->
+    <div id="pestaña1" class="tab-content">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-5">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>📥</span> Entrada de Inventario (Factura Proveedor)</h2>
+            <p class="text-xs text-slate-500">Aplica IVA 19% y retiene automáticamente ReteFuente 2.5% si la base supera 10 UVT (${{ "{:,.0f}".format(tope_uvt_pesos) }} COP).</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nro. Factura Proveedor</label>
+            <input type="text" id="prov_nro_factura" placeholder="Ej: 59161" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-blue-900 bg-white focus:ring-2 focus:ring-blue-800 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Número de Control</label>
+            <input type="text" id="prov_nro_control" placeholder="Ej: 00-00123" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Proveedor / Empresa</label>
+            <input type="text" id="prov_nombre" placeholder="Ej: FENIX S.A.S." class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">¿Aplica IVA (19%)?</label>
+            <select id="prov_aplica_iva" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-bold text-blue-900 focus:outline-none">
+              <option value="Si">Sí (Calcula IVA 19%)</option>
+              <option value="No">No aplica IVA</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">¿Declara Renta? (ReteFuente)</label>
+            <select id="prov_declara_renta" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-bold text-emerald-800 focus:outline-none" title="Si declara y supera 10 UVT, se retiene 2.5% de renta">
+              <option value="Si">Sí (Aplica ReteFuente 2.5%)</option>
+              <option value="No">No declara</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Días Crédito (Plazo)</label>
+            <input type="number" id="prov_dias_credito" value="30" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:outline-none">
+          </div>
+        </div>
+
+        <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-200 space-y-3 relative">
+          <h3 class="text-xs font-bold text-blue-900 flex items-center gap-1.5"><span>🔍</span> Buscar en Catálogo Existente</h3>
+          <div class="relative">
+            <input type="text" id="inputBuscarCatalogo" oninput="buscarRepuestosCatalogoReal()" placeholder="Empieza a escribir código o descripción..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none" autocomplete="off">
+            <div id="resultadosCatalogo" class="absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl mt-1 max-h-52 overflow-y-auto hidden z-20"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Código Interno</label>
+            <input type="text" id="add_codigo_interno" placeholder="Ej: REP-001" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold" required>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Descripción del Repuesto</label>
+            <input type="text" id="add_descripcion" placeholder="Ej: Bobina de encendido Aveo" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+            <select id="add_categoria" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold">
+              <option value="Carro">Carro 🚗</option>
+              <option value="Moto">Moto 🏍️</option>
+              <option value="Universal">Universal ⚙️</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Código de Barras</label>
+            <input type="text" id="add_codigo_barras" placeholder="Barras" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Código Opcional</label>
+            <input type="text" id="add_codigo_opcional" placeholder="Referencias" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Serial</label>
+            <input type="text" id="add_serial" placeholder="Serial producto" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Garantía</label>
+            <input type="text" id="add_garantia" value="3 meses" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Costo Unitario ($ COP)</label>
+            <input type="number" step="any" id="add_costo" placeholder="Ej: 54000" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Precio Venta ($ COP)</label>
+            <input type="number" step="any" id="add_precio_venta" placeholder="Ej: 75000" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold text-emerald-700" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad / Stock</label>
+            <input type="number" id="add_stock" value="1" min="1" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold" required>
+          </div>
+          <div>
+            <button type="button" onclick="agregarItemCarritoCompra()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow cursor-pointer">
+              + Agregar a Factura
+            </button>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Cód. Interno</th>
+                <th class="p-2.5">Descripción</th>
+                <th class="p-2.5 text-center">Cant.</th>
+                <th class="p-2.5">Costo Unit.</th>
+                <th class="p-2.5">Subtotal</th>
+                <th class="p-2.5 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tablaCarritoCompraBody" class="divide-y divide-slate-200">
+              <tr><td colspan="6" class="text-center py-6 text-slate-400 italic">El carrito está vacío. Agrega repuestos arriba.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex justify-between items-center bg-blue-50 px-4 py-3 rounded-xl border border-blue-200 text-xs">
+          <span class="font-bold text-slate-700">Subtotal Compra:</span>
+          <span id="totalCarritoCompraText" class="font-extrabold text-blue-900 text-sm">$ 0.00</span>
+        </div>
+
+        <form id="formFinalizarCompra" action="{{ url_for('registrar_factura_proveedor') }}" method="POST">
+          <input type="hidden" name="nro_factura_prov" id="hidden_nro_factura">
+          <input type="hidden" name="nro_control" id="hidden_nro_control">
+          <input type="hidden" name="proveedor" id="hidden_proveedor">
+          <input type="hidden" name="aplica_iva" id="hidden_aplica_iva">
+          <input type="hidden" name="declara_renta" id="hidden_declara_renta">
+          <input type="hidden" name="dias_credito" id="hidden_dias_credito">
+          <input type="hidden" name="carrito_compra_json" id="hidden_carrito_compra_json">
+          <button type="button" onclick="enviarFacturaProveedorFinal()" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow cursor-pointer flex items-center justify-center gap-2">
+            <span>📥 Finalizar Compra, Cargar Inventario y Generar Cuenta por Pagar</span>
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 2: INVENTARIO CON VISOR DE HASTA 3 FOTOS -->
+    <div id="pestaña2" class="tab-content hidden">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>📦</span> Inventario Disponible para la Venta</h2>
+            <p class="text-xs text-slate-500">Consulta mercancía, amplía fotos en alta resolución, edita precios y separa unidades en reclamo.</p>
+          </div>
+          <a href="{{ url_for('exportar_clientes_excel') }}" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-colors flex items-center gap-2">
+            <span>📊 Descargar Catálogo para Clientes (Excel)</span>
+          </a>
+        </div>
+
+        <form method="GET" action="{{ url_for('index') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar Repuesto</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por código, descripción, código de barras, opcional o serial..." class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-800">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+            <div class="flex gap-2">
+              <select name="categoria" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-800">
+                <option value="Todos" {% if cat_filtro == 'Todos' %}selected{% endif %}>Todos 🌐</option>
+                <option value="Carro" {% if cat_filtro == 'Carro' %}selected{% endif %}>Carro 🚗</option>
+                <option value="Moto" {% if cat_filtro == 'Moto' %}selected{% endif %}>Moto 🏍️</option>
+                <option value="Universal" {% if cat_filtro == 'Universal' %}selected{% endif %}>Universal ⚙️</option>
+              </select>
+              <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white px-4 rounded-lg text-sm font-bold shadow cursor-pointer">🔍</button>
+            </div>
+          </div>
+        </form>
+
+        {% if inventario %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-3 text-center">Fotos (Hasta 3)</th>
+                <th class="p-3">Código / Factura</th>
+                <th class="p-3">Descripción / Opcional / Serial</th>
+                <th class="p-3">Costo Unit.</th>
+                <th class="p-3">Precio Venta (COP)</th>
+                <th class="p-3">Stock Disponible</th>
+                <th class="p-3">Proveedor / Crédito</th>
+                <th class="p-3 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for item in inventario %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 text-center">
+                  <div class="flex flex-col items-center gap-1">
+                    {% if item.fotos_count > 0 %}
+                      <div class="flex gap-1 items-center justify-center">
+                        {% for f in item.fotos %}
+                          <img src="{{ url_for('static', filename='uploads/' + f) }}" alt="Repuesto" onclick="verFotoGrande(this.src, '{{ item.codigo_interno }} - {{ item.descripcion }}')" class="w-8 h-8 object-cover rounded-lg border border-slate-300 shadow-sm hover:scale-125 transition-transform cursor-zoom-in" title="🔍 Clic para ampliar en grande">
+                        {% endfor %}
+                      </div>
+                      <button type="button" onclick="abrirModalFotosPorId({{ item.id }})" class="text-[10px] text-blue-700 font-bold hover:underline cursor-pointer">
+                        📷 Editar ({{ item.fotos_count }}/3)
+                      </button>
+                    {% else %}
+                      <button type="button" onclick="abrirModalFotosPorId({{ item.id }})" class="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
+                        <span>📷</span> + Fotos
+                      </button>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="p-3 font-mono">
+                  <span class="font-bold text-slate-700">{{ item.codigo_interno }}</span><br>
+                  <span class="text-[11px] text-blue-700 font-semibold">Fact: #{{ item.nro_factura_prov }}</span><br>
+                  <span class="text-[10px] text-slate-500">Ctrl: {{ item.nro_control }}</span>
+                </td>
+                <td class="p-3">
+                  <p class="font-medium text-slate-900 desc-text text-sm">{{ item.descripcion }}</p>
+                  <p class="text-[11px] text-slate-500 font-mono">Opcional: <span class="text-blue-800 font-semibold">{{ item.codigo_opcional }}</span></p>
+                  <p class="text-[11px] text-slate-500 font-mono">Serial: <span class="font-bold text-slate-700">{{ item.serial }}</span></p>
+                </td>
+                <td class="p-3 text-slate-500 font-mono">$ {{ "%.2f"|format(item.costo | float) }}</td>
+                <td class="p-3">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-emerald-700 text-sm">$ {{ "%.2f"|format(item.precio_venta | float) }}</span>
+                    <button onclick="abrirModalPrecio('{{ item.id }}', this, '{{ item.precio_venta }}')" class="bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-800 p-1 rounded text-xs transition-colors cursor-pointer" title="Modificar precio">✏️</button>
+                  </div>
+                </td>
+                <td class="p-3">
+                  <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-[11px]">{{ item.stock_disponible }} un. disp.</span>
+                  {% if item.stock_reclamo > 0 %}
+                    <br><span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full inline-block mt-1 border border-amber-200">⚠️ {{ item.stock_reclamo }} en reclamo</span>
+                  {% endif %}
+                </td>
+                <td class="p-3 text-slate-600">{{ item.proveedor or 'N/I' }}<br><span class="text-blue-700 font-semibold">Plazo: {{ item.dias_credito }} días</span></td>
+                <td class="p-3 text-center">
+                  <a href="{{ url_for('eliminar_repuesto', id=item.id) }}" onclick="return confirm('¿Seguro deseas eliminar este repuesto del inventario?')" class="bg-red-100 hover:bg-red-200 text-red-700 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors inline-block cursor-pointer">🗑️ Eliminar</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-10 text-slate-400 text-xs italic">No se encontraron repuestos registrados.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 3: VENTAS & SERVICIOS (CON FACTURA COLOMBIANA Y RETEFUENTE) -->
+    <div id="pestaña3" class="tab-content hidden">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-6">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>🧾</span> Ventas, Servicios y Facturación Electrónica</h2>
+            <p class="text-xs text-slate-500">Factura repuestos o mano de obra/servicios. Calcula automáticamente IVA 19% y ReteFuente 2.5% a empresas.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Cédula o NIT</label>
+            <input type="text" id="cliente_doc" placeholder="Ej: 88208896" onblur="buscarCliente()" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-800 focus:outline-none" required>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre o Razón Social</label>
+            <input type="text" id="cliente_nombre" placeholder="Nombre del cliente o empresa" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-800 focus:outline-none" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Teléfono</label>
+            <input type="text" id="cliente_telefono" placeholder="Ej: 3213942887" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">¿Cliente es Empresa / Retenedor?</label>
+            <select id="es_agente_retencion" name="es_agente_retencion" onchange="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold text-blue-900 focus:outline-none">
+              <option value="No">No (Persona Natural / Común)</option>
+              <option value="Si">Sí (Empresa - Retiene 2.5% Renta)</option>
+            </select>
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Dirección de Entrega</label>
+            <input type="text" id="cliente_direccion" placeholder="Ej: Calle 8 #6-27 Villa del Rosario" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
+          </div>
+          <div class="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 text-xs text-blue-900 font-semibold">
+            <span id="contadorComprasText">📊 1ª Compra registrada</span>
+          </div>
+        </div>
+
+        <!-- BUSCADOR DE REPUESTOS Y BOTÓN DE SERVICIOS -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 relative">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h3 class="text-xs font-bold text-slate-700">🔍 Buscar Repuesto de Inventario</h3>
+            <button type="button" onclick="toggleSeccionServicios()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow cursor-pointer flex items-center gap-1.5">
+              <span>🔧</span> + Facturar Servicio / Mano de Obra (Sin Inventario)
+            </button>
+          </div>
+
+          <!-- SECCIÓN DESPLEGABLE PARA AGREGAR SERVICIOS (LIMPIEZA INYECTORES, ETC) -->
+          <div id="seccionAgregarServicio" class="hidden bg-indigo-50/70 p-3 rounded-xl border border-indigo-200 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-[11px] font-bold text-indigo-900 mb-0.5">Concepto del Servicio / Mano de Obra</label>
+              <input type="text" id="serv_descripcion" placeholder="Ej: Limpieza de Inyectores x4 por Ultrasonido" class="w-full border border-indigo-300 rounded-lg p-2 text-xs bg-white font-medium focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-indigo-900 mb-0.5">Precio del Servicio ($ COP)</label>
+              <input type="number" step="any" id="serv_precio" placeholder="Ej: 80000" class="w-full border border-indigo-300 rounded-lg p-2 text-xs bg-white font-bold text-emerald-700 focus:outline-none">
+            </div>
+            <div>
+              <button type="button" onclick="agregarServicioAlCarrito()" class="w-full bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-2 rounded-lg text-xs shadow cursor-pointer">
+                + Cargar Servicio a Factura
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div class="md:col-span-2 relative">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Código o Descripción de Repuesto</label>
+              <input type="text" id="inputBuscadorVenta" oninput="buscarRepuestosEnTiempoReal()" placeholder="Empieza a escribir..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-800 focus:outline-none" autocomplete="off">
+              <div id="resultadosBusqueda" class="absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto hidden z-20"></div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad</label>
+              <input type="number" id="cantidadVenta" value="1" min="1" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Precio Venta ($ COP)</label>
+              <input type="number" step="any" id="precioVenta" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold text-emerald-700 focus:outline-none">
+            </div>
+          </div>
+          <input type="hidden" id="selectedRepId">
+          <input type="hidden" id="selectedRepCosto">
+          <input type="hidden" id="selectedRepStock">
+          <input type="hidden" id="selectedRepCodigo">
+          <input type="hidden" id="selectedRepDesc">
+          <div class="flex justify-between items-center text-xs text-slate-500 italic pt-1">
+            <span id="infoProductoSeleccionado">Ningún repuesto seleccionado.</span>
+            <button type="button" onclick="agregarAlCarrito()" class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition-colors cursor-pointer">
+              + Agregar Repuesto
+            </button>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Tipo</th>
+                <th class="p-2.5">Código</th>
+                <th class="p-2.5">Descripción</th>
+                <th class="p-2.5 text-center">Cant.</th>
+                <th class="p-2.5">Precio Unit.</th>
+                <th class="p-2.5">Subtotal</th>
+                <th class="p-2.5 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tablaCarritoBody" class="divide-y divide-slate-200">
+              <tr id="carritoVacioRow"><td colspan="7" class="text-center py-6 text-slate-400 italic">El carrito está vacío. Agrega repuestos o servicios arriba.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- FORMULARIO DE FACTURA CON DESGLOSE TRIBUTARIO -->
+        <form id="formEmitirFactura" action="{{ url_for('emitir_factura') }}" method="POST">
+          <input type="hidden" name="cliente_doc" id="hidden_cliente_doc">
+          <input type="hidden" name="cliente_nombre" id="hidden_cliente_nombre">
+          <input type="hidden" name="cliente_telefono" id="hidden_cliente_telefono">
+          <input type="hidden" name="cliente_direccion" id="hidden_cliente_direccion">
+          <input type="hidden" name="es_agente_retencion" id="hidden_es_agente_retencion">
+          <input type="hidden" name="carrito_json" id="hidden_carrito_json">
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Modalidad de Pago</label>
+              <select name="tipo_pago" id="tipo_pago" onchange="cambiarModalidadPago()" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none font-bold">
+                <option value="Contado">💵 Contado (Pago Completo)</option>
+                <option value="Abono">📥 Abono (Pago Parcial Inicial)</option>
+                <option value="Crédito">⏳ Crédito Completo</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-blue-900 mb-1">Tasa Dólar (COP / $)</label>
+              <input type="number" step="any" name="tasa_dolar_venta" id="tasa_dolar_venta" value="3250" oninput="calcularDistribucionCanales()" class="w-full border border-blue-300 rounded-lg p-2 text-xs bg-white font-bold text-blue-900 focus:outline-none">
+            </div>
+            <div id="divDiasPlazo">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Días de Plazo</label>
+              <input type="number" name="dias_plazo" id="dias_plazo" value="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
+            </div>
+            
+            <!-- TARJETA TOTALES DE VENTA DESGLOSADOS -->
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs space-y-0.5">
+              <div class="flex justify-between text-slate-600"><span>Base Imponible:</span><strong id="lblBaseVenta">$ 0.00</strong></div>
+              <div class="flex justify-between text-blue-800"><span>IVA (19%):</span><strong id="lblIvaVenta">$ 0.00</strong></div>
+              <div id="filaReteVenta" class="flex justify-between text-red-600 hidden"><span>(-) ReteFuente 2.5%:</span><strong id="lblReteVenta">- $ 0.00</strong></div>
+              <div class="flex justify-between text-emerald-800 font-extrabold text-sm border-t border-blue-200 pt-1"><span>TOTAL A COBRAR:</span><span id="totalGeneralText">$ 0.00</span></div>
+            </div>
+
+            <!-- CANALES DE PAGO MULTI-DIVISA -->
+            <div id="divDistribucionPagos" class="md:col-span-4 bg-white p-3.5 rounded-xl border border-blue-200 space-y-2.5">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5">
+                <span class="text-xs font-bold text-blue-900">💳 Canales de Pago Recibidos:</span>
+                <div class="flex flex-wrap gap-1 text-[10px]">
+                  <button type="button" onclick="llenarCanalTodo('efectivo')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded cursor-pointer">💵 Todo Efectivo COP</button>
+                  <button type="button" onclick="llenarCanalTodo('nequi')" class="bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold px-2 py-0.5 rounded cursor-pointer">🟣 Todo Nequi</button>
+                  <button type="button" onclick="llenarCanalTodo('bancolombia')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2 py-0.5 rounded cursor-pointer">🟡 Todo Bancolombia</button>
+                  <button type="button" onclick="llenarCanalTodo('dolar_efectivo')" class="bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold px-2 py-0.5 rounded cursor-pointer">💵 Todo Dólar $</button>
+                  <button type="button" onclick="llenarCanalTodo('zelle')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold px-2 py-0.5 rounded cursor-pointer">💲 Todo Zelle</button>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">💵 Efectivo (COP)</label>
+                  <input type="number" step="any" name="pago_efectivo" id="pago_efectivo" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded p-1.5 text-xs font-bold focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-purple-700 mb-0.5">🟣 Nequi (COP)</label>
+                  <input type="number" step="any" name="pago_nequi" id="pago_nequi" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded p-1.5 text-xs font-bold text-purple-800 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-amber-700 mb-0.5">🟡 Bancolombia (COP)</label>
+                  <input type="number" step="any" name="pago_bancolombia" id="pago_bancolombia" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded p-1.5 text-xs font-bold text-amber-800 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-red-700 mb-0.5">🔴 Daviplata (COP)</label>
+                  <input type="number" step="any" name="pago_daviplata" id="pago_daviplata" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded p-1.5 text-xs font-bold text-red-800 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-blue-700 mb-0.5">🏛️ Transferencia</label>
+                  <input type="number" step="any" name="pago_transferencia" id="pago_transferencia" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-slate-300 rounded p-1.5 text-xs font-bold text-blue-800 focus:outline-none">
+                </div>
+                <div class="bg-teal-50/60 p-1 rounded-lg border border-teal-200">
+                  <label class="block text-[10px] font-bold text-teal-800 mb-0.5">💵 Dólar ($ USD)</label>
+                  <input type="number" step="any" name="pago_dolar_efectivo_usd" id="pago_dolar_efectivo_usd" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-teal-300 rounded p-1.5 text-xs font-bold text-teal-900 focus:outline-none">
+                  <span id="lblEquivDolarEf" class="text-[9px] text-teal-700 font-semibold block text-right">≈ $0 COP</span>
+                </div>
+                <div class="bg-blue-50/60 p-1 rounded-lg border border-blue-200">
+                  <label class="block text-[10px] font-bold text-blue-900 mb-0.5">💲 Zelle ($ USD)</label>
+                  <input type="number" step="any" name="pago_zelle_usd" id="pago_zelle_usd" value="0" oninput="calcularDistribucionCanales()" class="w-full border border-blue-300 rounded p-1.5 text-xs font-bold text-blue-900 focus:outline-none">
+                  <span id="lblEquivZelle" class="text-[9px] text-blue-700 font-semibold block text-right">≈ $0 COP</span>
+                </div>
+              </div>
+              <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                <span>Total Distribuido: <strong id="lblTotalDistribuido" class="text-blue-900 font-mono">$ 0.00</strong></span>
+                <span id="lblDiferenciaPago" class="text-slate-500 font-semibold"></span>
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="enviarFactura()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2">
+            <span>🖨️ Emitir Factura Electrónica (PDF) y Registrar en Caja</span>
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 4: MEJORES PRODUCTOS -->
+    <div id="pestañaMejores" class="tab-content hidden">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>🏆</span> Ranking de Mejores Productos</h2>
+          <p class="text-xs text-slate-500">Ordenados de mayor a menor según las unidades vendidas.</p>
+        </div>
+        {% if mejores_productos_data %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Ranking</th>
+                <th class="p-2.5">Descripción</th>
+                <th class="p-2.5">Barras / Serial</th>
+                <th class="p-2.5 text-center">Total Vendido</th>
+                <th class="p-2.5 text-center">Detalle Clientes</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for prod in mejores_productos_data %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5">
+                  <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-extrabold mr-1">#{{ loop.index }}</span>
+                  <span class="font-mono font-bold text-blue-900">{{ prod.codigo_interno }}</span>
+                </td>
+                <td class="p-2.5 font-medium text-slate-900 text-sm">{{ prod.descripcion }}</td>
+                <td class="p-2.5 text-slate-600 font-mono">
+                  <span>Barras: {{ prod.codigo_barras }}</span><br>
+                  <span>Serial: {{ prod.serial }}</span>
+                </td>
+                <td class="p-2.5 text-center">
+                  <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-extrabold">{{ prod.total_vendido }} un.</span>
+                </td>
+                <td class="p-2.5 text-center">
+                  <button type="button" onclick="abrirModalDetalleMejoresPorIdx({{ loop.index0 }})" class="bg-blue-50 hover:bg-blue-100 text-blue-800 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer">
+                    👥 Clientes ({{ prod.clientes_compradores|length }})
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-slate-400 text-xs italic">Aún no se han registrado ventas.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 5: PRESUPUESTOS MULTIDIVISA -->
+    <div id="pestaña8" class="tab-content hidden">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>💱</span> Presupuestos Multidivisa (Pesos, Bolívares y Dólares)</h2>
+          <p class="text-xs text-slate-500">Configura tus tasas y genera cotizaciones en PDF al instante.</p>
+        </div>
+        <form action="{{ url_for('generar_presupuesto_pdf') }}" method="POST" target="_blank" id="formPresupuestoMultidivisa">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-amber-900 mb-1">Tasa de Cambio (Pesos x Bs - División)</label>
+              <input type="number" step="0.01" name="tasa_peso_bs" id="tasa_peso_bs" value="1.0" oninput="calcularTotalesPresupuesto()" class="w-full border border-amber-300 rounded-lg p-2 text-xs bg-white font-bold text-blue-900 focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-amber-900 mb-1">Tasa de Cambio (Dólares - División)</label>
+              <input type="number" step="0.01" name="tasa_dolar_bs" id="tasa_dolar_bs" value="1.0" oninput="calcularTotalesPresupuesto()" class="w-full border border-amber-300 rounded-lg p-2 text-xs bg-white font-bold text-blue-900 focus:outline-none" required>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Cliente / Empresa</label>
+              <input type="text" name="presupuesto_cliente" placeholder="Ej: Inversiones El Trébol" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Cédula o RIF</label>
+              <input type="text" name="presupuesto_rif" placeholder="Ej: J-12345678-9" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none" required>
+            </div>
+          </div>
+          <div class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-200 space-y-2 relative mb-3">
+            <h3 class="text-xs font-bold text-blue-900">🔍 Buscar Repuestos para Cotizar</h3>
+            <div class="relative">
+              <input type="text" id="inputBuscadorPresupuesto" oninput="buscarRepuestosPresupuestoReal()" placeholder="Escribe código o descripción..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none" autocomplete="off">
+              <div id="resultadosPresupuesto" class="absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto hidden z-30"></div>
+            </div>
+          </div>
+          <div class="border border-slate-200 rounded-xl overflow-hidden mb-3">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 uppercase">
+                  <th class="p-2.5">Código</th>
+                  <th class="p-2.5">Descripción</th>
+                  <th class="p-2.5 text-center">Cant.</th>
+                  <th class="p-2.5">Precio COP (Editable)</th>
+                  <th class="p-2.5">Subtotal COP</th>
+                  <th class="p-2.5 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaPresupuestoCarritoBody" class="divide-y divide-slate-200">
+                <tr><td colspan="6" class="text-center py-6 text-slate-400 italic">No hay productos en la cotización.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bg-slate-900 text-white p-4 rounded-2xl shadow space-y-1.5 mb-4 text-xs">
+            <div class="flex justify-between border-b border-slate-700 pb-1.5">
+              <span class="text-slate-300">Subtotal Base COP:</span>
+              <span id="presupuestoSubtotalText" class="font-bold font-mono">$ 0.00</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-700 pb-1.5">
+              <span class="text-slate-300">IVA (19%):</span>
+              <span id="presupuestoIvaText" class="font-bold font-mono">$ 0.00</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-700 pb-1.5 text-sm">
+              <span class="font-bold text-emerald-400">TOTAL EN PESOS (COP):</span>
+              <span id="presupuestoTotalCopText" class="font-extrabold text-emerald-400 font-mono">$ 0.00</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-700 pb-1.5">
+              <span class="font-bold text-amber-300">TOTAL ESTIMADO EN BOLÍVARES (Bs):</span>
+              <span id="presupuestoTotalBsText" class="font-extrabold text-amber-300 font-mono">Bs. 0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-bold text-sky-300">TOTAL ESTIMADO EN DÓLARES ($):</span>
+              <span id="presupuestoTotalUsdText" class="font-extrabold text-sky-300 font-mono">$ 0.00</span>
+            </div>
+          </div>
+          <input type="hidden" name="presupuesto_carrito_json" id="presupuesto_carrito_json">
+          <button type="button" onclick="enviarPresupuestoPdf()" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl text-xs transition-colors shadow cursor-pointer">
+            📄 Generar Presupuesto Multidivisa en PDF
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 6: COBRANZAS Y CLIENTES -->
+    <div id="pestaña4" class="tab-content hidden space-y-6">
+      <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
+          <p class="text-[10px] font-semibold text-slate-500 uppercase">Inversión Stock</p>
+          <h3 class="text-sm font-extrabold text-blue-900 mt-1">$ {{ "{:,.2f}".format(inversion_stock | float) }}</h3>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
+          <p class="text-[10px] font-semibold text-slate-500 uppercase">Ventas Totales</p>
+          <h3 class="text-sm font-extrabold text-emerald-700 mt-1">$ {{ "{:,.2f}".format(ventas_totales | float) }}</h3>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
+          <p class="text-[10px] font-semibold text-slate-500 uppercase">Facturas Emitidas</p>
+          <h3 class="text-sm font-extrabold text-slate-800 mt-1">{{ total_facturas_count }} Facturas</h3>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-red-200 bg-red-50/30">
+          <p class="text-[10px] font-semibold text-red-600 uppercase">Facturas Pendientes</p>
+          <h3 class="text-sm font-extrabold text-red-700 mt-1">{{ facturas_pendientes_count }} por Cobrar</h3>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-amber-200 bg-amber-50/30">
+          <p class="text-[10px] font-semibold text-amber-700 uppercase">Dinero por Cobrar</p>
+          <h3 class="text-sm font-extrabold text-amber-800 mt-1">$ {{ "{:,.2f}".format(dinero_por_cobrar | float) }}</h3>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>📜</span> Historial de Facturas y Cobranzas</h2>
+          <p class="text-xs text-slate-500">Abonos, saldos pendientes y plazos de crédito.</p>
+        </div>
+        {% if facturas_data %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Factura</th>
+                <th class="p-2.5">Cliente</th>
+                <th class="p-2.5">Total / Modo</th>
+                <th class="p-2.5">Abono / Deuda</th>
+                <th class="p-2.5">Estatus</th>
+                <th class="p-2.5 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for fac in facturas_data %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-mono font-bold text-blue-900"># 000{{ fac.id }}<br><span class="text-[10px] text-slate-400 font-normal">{{ fac.fecha }}</span></td>
+                <td class="p-2.5"><p class="font-medium text-slate-900">{{ fac.nombre }}</p><p class="text-slate-500 font-mono">{{ fac.doc }}</p></td>
+                <td class="p-2.5"><span class="font-bold text-slate-800">$ {{ "{:,.2f}".format(fac.total | float) }}</span><br><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">{{ fac.tipo_pago }}</span></td>
+                <td class="p-2.5"><span class="text-emerald-700 font-semibold">Abono: $ {{ "{:,.2f}".format(fac.abonado | float) }}</span><br><span class="text-red-600 font-bold">Resta: $ {{ "{:,.2f}".format(fac.restante | float) }}</span></td>
+                <td class="p-2.5">
+                  {% if fac.estado == 'Pagado' %}<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Pagado</span>
+                  {% else %}<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold text-[10px]">{{ fac.vencimiento_texto }}</span>{% endif %}
+                </td>
+                <td class="p-2.5 text-center space-x-1">
+                  <a href="{{ url_for('descargar_pdf_factura', factura_id=fac.id) }}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm inline-block">📄 Factura</a>
+                  {% if fac.restante > 0 %}
+                    <button onclick="abrirModalAbono('{{ fac.id }}', '{{ fac.restante }}', '{{ fac.nombre }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm cursor-pointer">💵 Abonar</button>
+                    <a href="{{ url_for('marcar_pagado_completo', factura_id=fac.id) }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm inline-block">✓ Pagar</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-6 text-slate-400 text-xs italic">Aún no se han emitido facturas.</div>
+        {% endif %}
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>👥</span> Directorio de Clientes</h2>
+        </div>
+        {% if clientes_data %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Documento</th>
+                <th class="p-2.5">Nombre</th>
+                <th class="p-2.5">Teléfono</th>
+                <th class="p-2.5 text-center">Facturas</th>
+                <th class="p-2.5">Total Comprado</th>
+                <th class="p-2.5 text-center">Detalle</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for cli in clientes_data %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-mono font-bold">{{ cli.documento }}</td>
+                <td class="p-2.5 font-medium">{{ cli.nombre }}</td>
+                <td class="p-2.5 text-slate-600">{{ cli.telefono or 'N/A' }}</td>
+                <td class="p-2.5 text-center"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">{{ cli.facturas_count }}</span></td>
+                <td class="p-2.5 font-bold text-emerald-700">$ {{ "{:,.2f}".format(cli.total_gastado | float) }}</td>
+                <td class="p-2.5 text-center">
+                  <button type="button" onclick="abrirModalDetalleClientePorIdx({{ loop.index0 }})" class="bg-blue-50 hover:bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer">🛍️ Compras</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 7: CUENTAS POR PAGAR (CON DETALLE COMPLETO DE COMPRA) -->
+    <div id="pestaña5" class="tab-content hidden space-y-6">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>💳</span> Control de Cuentas por Pagar (Proveedores)</h2>
+            <p class="text-xs text-slate-500">Facturas neteadas con ReteFuente 2.5%, días de vencimiento y abonos.</p>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl text-right">
+            <span class="text-[10px] font-semibold text-amber-700 uppercase block">Total Deuda Proveedores</span>
+            <span class="text-base font-extrabold text-amber-800">$ {{ "{:,.2f}".format(total_por_pagar | float) }}</span>
+          </div>
+        </div>
+        {% if cuentas_por_pagar_data %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Factura / Ctrl</th>
+                <th class="p-2.5">Proveedor</th>
+                <th class="p-2.5">Total / IVA</th>
+                <th class="p-2.5">Saldo Restante</th>
+                <th class="p-2.5">Plazo</th>
+                <th class="p-2.5 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for cxp in cuentas_por_pagar_data %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-mono font-bold text-blue-900"># {{ cxp.nro_factura }}<br><span class="text-slate-400 font-normal">Ctrl: {{ cxp.nro_control }}</span></td>
+                <td class="p-2.5 font-semibold text-slate-900">{{ cxp.proveedor }}</td>
+                <td class="p-2.5"><span class="font-bold text-slate-800">$ {{ "{:,.2f}".format(cxp.total | float) }}</span><br><span class="text-blue-700">IVA: $ {{ "{:,.2f}".format(cxp.monto_iva | float) }}</span></td>
+                <td class="p-2.5 font-bold text-red-600">$ {{ "{:,.2f}".format(cxp.restante | float) }}</td>
+                <td class="p-2.5">
+                  {% if cxp.estado == 'Pagado' %}<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Pagado</span>
+                  {% else %}<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold text-[10px]">{{ cxp.vencimiento_texto }}</span>{% endif %}
+                </td>
+                <td class="p-2.5 text-center space-x-1">
+                  <button type="button" onclick="verDetalleFacturaCompra('{{ cxp.nro_factura }}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold cursor-pointer" title="Ver qué productos venían en esta factura">🔍 Detalle</button>
+                  {% if cxp.restante > 0 %}
+                    <button onclick="abrirModalAbonoCxP('{{ cxp.id }}', '{{ cxp.restante }}', '{{ cxp.nro_factura }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer">💵 Abonar</button>
+                    <a href="{{ url_for('marcar_pagado_cxp', cxp_id=cxp.id) }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold inline-block">✓ Pagar</a>
+                  {% else %}<span class="text-emerald-600 font-bold">Saldado ✓</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-6 text-slate-400 text-xs italic">No hay Cuentas por Pagar registradas.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 8: RETENCIONES -->
+    <div id="pestaña6" class="tab-content hidden space-y-6">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>📑</span> Certificados de Retención en la Fuente</h2>
+            <p class="text-xs text-slate-500">Comprobantes oficiales para enviar a tus proveedores.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-right">
+              <span class="text-[10px] font-semibold text-emerald-700 uppercase block">Retenciones Acumuladas</span>
+              <span class="text-base font-extrabold text-emerald-800">$ {{ "{:,.2f}".format(total_retenciones | float) }}</span>
+            </div>
+            {% if total_retenciones > 0 %}
+            <a href="{{ url_for('liquidar_retenciones') }}" onclick="return confirm('¿Confirmas que has cancelado o declarado las retenciones? Se limpiará a $ 0.00.')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow flex items-center gap-1 cursor-pointer">
+              <span>🧹</span> Reiniciar a $ 0.00
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        {% if retenciones_data %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Factura / Control</th>
+                <th class="p-2.5">Proveedor</th>
+                <th class="p-2.5">Fecha</th>
+                <th class="p-2.5">Base Imponible</th>
+                <th class="p-2.5">Retención (2.5%)</th>
+                <th class="p-2.5 text-center">Certificado PDF</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for ret in retenciones_data %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-mono font-bold text-blue-900"># {{ ret.nro_factura }}<br><span class="text-slate-500 text-[10px]">Ctrl: {{ ret.nro_control }}</span></td>
+                <td class="p-2.5 font-semibold text-slate-900">{{ ret.proveedor }}</td>
+                <td class="p-2.5 text-slate-600">{{ ret.fecha }}</td>
+                <td class="p-2.5 font-mono">$ {{ "{:,.2f}".format(ret.base_imponible | float) }}</td>
+                <td class="p-2.5 font-bold font-mono text-emerald-700">$ {{ "{:,.2f}".format(ret.monto_retencion | float) }}</td>
+                <td class="p-2.5 text-center">
+                  <button type="button" onclick="descargarRetencionYActualizar('{{ url_for('descargar_pdf_retencion', ret_id=ret.id) }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm cursor-pointer">
+                    📄 Certificado PDF
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-6 text-slate-400 text-xs italic">No hay retenciones pendientes de emitir comprobante.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 9: INTELIGENCIA DE PEDIDOS -->
+    <div id="pestaña7" class="tab-content hidden space-y-6">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>📦📋</span> Inteligencia de Pedidos y Rotación</h2>
+          <p class="text-xs text-slate-500">Cálculo de reposición comparando ventas contra el stock disponible real.</p>
+        </div>
+        {% if analisis_pedidos %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Código / Repuesto</th>
+                <th class="p-2.5 text-center">Stock Disp. Real</th>
+                <th class="p-2.5 text-center">30 Días</th>
+                <th class="p-2.5 text-center">60 Días</th>
+                <th class="p-2.5 text-center">90 Días</th>
+                <th class="p-2.5 text-center">120 Días</th>
+                <th class="p-2.5">Proveedor & Costo</th>
+                <th class="p-2.5 text-center bg-blue-50 text-blue-900">Sugerido a Pedir</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for item in analisis_pedidos %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5">
+                  <span class="font-mono font-bold text-blue-900">{{ item.codigo }}</span><br>
+                  <span class="font-medium text-slate-900">{{ item.descripcion }}</span>
+                </td>
+                <td class="p-2.5 text-center">
+                  <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-xs">{{ item.stock_disponible }} un.</span>
+                  {% if item.stock_reclamo > 0 %}
+                    <br><span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full inline-block mt-0.5 border border-amber-200">⚠️ {{ item.stock_reclamo }} en reclamo</span>
+                  {% endif %}
+                </td>
+                <td class="p-2.5 text-center font-bold text-slate-700">{{ item.v_30 }} un.</td>
+                <td class="p-2.5 text-center text-slate-600">{{ item.v_60 }} un.</td>
+                <td class="p-2.5 text-center text-slate-600">{{ item.v_90 }} un.</td>
+                <td class="p-2.5 text-center text-slate-600">{{ item.v_120 }} un.</td>
+                <td class="p-2.5 text-slate-800">
+                  <span>{{ item.proveedor }}</span><br>
+                  <span class="text-emerald-700 font-mono font-bold">Costo: $ {{ "{:,.2f}".format(item.costo | float) }}</span>
+                </td>
+                <td class="p-2.5 text-center bg-blue-50/50">
+                  {% if item.sugerido_pedir > 0 %}
+                    <span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-extrabold animate-pulse text-xs">Pedir {{ item.sugerido_pedir }} un.</span>
+                  {% else %}<span class="text-emerald-600 font-semibold">Stock Suficiente ✓</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 10: RECLAMOS Y DEVOLUCIONES -->
+    <div id="pestaña10" class="tab-content hidden space-y-6">
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-5">
+        <div class="border-b border-slate-100 pb-3">
+          <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>🔄</span> Reclamos, Garantías y Devoluciones</h2>
+          <p class="text-xs text-slate-500">Aislamiento de mercancía defectuosa y garantías con clientes.</p>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" id="btnSubTabCompras" onclick="toggleSubSeccionReclamos('compras')" class="bg-blue-900 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow cursor-pointer">
+            📥 Devolución en Compras (A Proveedores)
+          </button>
+          <button type="button" id="btnSubTabVentas" onclick="toggleSubSeccionReclamos('ventas')" class="bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm hover:bg-slate-300 transition-colors cursor-pointer">
+            🧾 Devolución en Ventas (De Clientes)
+          </button>
+        </div>
+
+        <!-- SECCIÓN 1: COMPRAS -->
+        <div id="seccionReclamoCompras" class="space-y-5">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h3 class="text-sm font-bold text-slate-800">1. Buscar Factura de Proveedor para Reclamo</h3>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input type="text" id="inputBuscarFacProvReclamo" placeholder="Nro. Factura Proveedor (Ej: 59161)" class="w-full sm:w-80 border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold focus:outline-none">
+              <button type="button" onclick="buscarFacturaProveedorReclamo()" class="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-5 py-2 rounded-xl shadow cursor-pointer">Consultar Factura</button>
+            </div>
+            <div id="infoFacProvReclamo" class="hidden p-3 rounded-lg border text-xs"></div>
+          </div>
+
+          <form id="formReclamoCompra" action="{{ url_for('registrar_devolucion_compra') }}" method="POST" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 hidden">
+            <input type="hidden" name="nro_factura" id="reclamo_c_nro_factura">
+            <input type="hidden" name="proveedor" id="reclamo_c_proveedor">
+            <input type="hidden" name="item_id" id="reclamo_c_item_id">
+            <input type="hidden" name="codigo_interno" id="reclamo_c_codigo">
+            <input type="hidden" name="descripcion" id="reclamo_c_desc">
+            <input type="hidden" name="costo_unitario" id="reclamo_c_costo">
+            <h3 class="text-sm font-bold text-slate-800">2. Seleccionar Producto y Acción</h3>
+            <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase">
+                    <th class="p-2">Código</th>
+                    <th class="p-2">Descripción</th>
+                    <th class="p-2">Costo</th>
+                    <th class="p-2">Stock</th>
+                    <th class="p-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaProductosFacturaProvBody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+            <div id="panelOpcionesCompra" class="hidden grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl border border-blue-200">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Producto</label>
+                <input type="text" id="displayProductoSeleccionadoC" readonly class="w-full border border-slate-200 rounded-lg p-2 text-xs bg-slate-100 font-bold text-blue-900">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad a Reclamar</label>
+                <input type="number" name="cantidad" id="reclamo_c_cantidad" min="1" value="1" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold" required>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Acción</label>
+                <select name="opcion_reclamo" id="selectOpcionReclamoC" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold">
+                  <option value="Cambio">1. El producto se cambiará (Aislar a Reclamo)</option>
+                  <option value="Reintegro">2. Reintegrar dinero (Devolver al Proveedor)</option>
+                  <option value="Descuento">3. Descontar de la factura (En CXP)</option>
+                </select>
+              </div>
+              <div class="md:col-span-3">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
+                <input type="text" name="motivo" value="Pieza defectuosa de fábrica" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+              </div>
+              <div class="md:col-span-3">
+                <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 rounded-xl text-xs shadow cursor-pointer">✓ Procesar Reclamo</button>
+              </div>
+            </div>
+          </form>
+
+          <div class="space-y-3">
+            <h3 class="text-sm font-bold text-blue-900">📦 Mercancía en Reclamo a Proveedores</h3>
+            {% if devoluciones_compras_data %}
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase">
+                    <th class="p-2.5">Factura</th>
+                    <th class="p-2.5">Proveedor</th>
+                    <th class="p-2.5">Producto</th>
+                    <th class="p-2.5 text-center">Cant.</th>
+                    <th class="p-2.5">Monto</th>
+                    <th class="p-2.5">Estado</th>
+                    <th class="p-2.5 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  {% for dev in devoluciones_compras_data %}
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-2.5 font-mono font-bold text-blue-900">#{{ dev.referencia_factura }}</td>
+                    <td class="p-2.5">{{ dev.tercero }}</td>
+                    <td class="p-2.5"><span class="font-bold">{{ dev.descripcion }}</span><br><span class="text-slate-500 font-mono text-[10px]">{{ dev.codigo_interno }}</span></td>
+                    <td class="p-2.5 text-center font-bold text-red-600">{{ dev.cantidad }} un.</td>
+                    <td class="p-2.5 font-bold font-mono">$ {{ "{:,.2f}".format(dev.monto_afectado | float) }}</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded-full font-bold text-[10px] bg-amber-100 text-amber-800">{{ dev.opcion_reclamo }}</span><br><span class="text-[10px] text-slate-500">{{ dev.estado }}</span></td>
+                    <td class="p-2.5 text-center space-x-1">
+                      {% if dev.opcion_reclamo == 'Cambio de Producto' and 'Liberado' not in dev.estado %}
+                        <a href="{{ url_for('resolver_devolucion', dev_id=dev.id, accion='recibido_cambio') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold inline-block">✓ Recibido</a>
+                      {% elif dev.opcion_reclamo == 'Reintegro de Dinero' and 'Reintegrado' not in dev.estado %}
+                        <a href="{{ url_for('resolver_devolucion', dev_id=dev.id, accion='reintegro_recibido') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold inline-block">✓ Cobrado</a>
+                      {% endif %}
+                      <a href="{{ url_for('resolver_devolucion', dev_id=dev.id, accion='eliminar') }}" onclick="return confirm('¿Eliminar registro?')" class="text-slate-400 hover:text-red-600 px-1.5 py-1 font-bold">🗑️</a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: VENTAS (CON BLOQUEO SI FACTURA ESTÁ PAGADA COMPLETA) -->
+        <div id="seccionReclamoVentas" class="space-y-5 hidden">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h3 class="text-sm font-bold text-slate-800">1. Buscar Factura de Venta para Garantía</h3>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input type="text" id="inputBuscarFacVentaReclamo" placeholder="Nro. Factura (Ej: 1 o #0001)" class="w-full sm:w-80 border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold focus:outline-none">
+              <button type="button" onclick="buscarFacturaVentaReclamo()" class="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-5 py-2 rounded-xl shadow cursor-pointer">Consultar Factura</button>
+            </div>
+            <div id="infoFacVentaReclamo" class="hidden p-3 rounded-lg border text-xs"></div>
+          </div>
+
+          <form id="formReclamoVenta" action="{{ url_for('registrar_devolucion_venta') }}" method="POST" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 hidden">
+            <input type="hidden" name="factura_id" id="reclamo_v_factura_id">
+            <input type="hidden" name="cliente_nombre" id="reclamo_v_cliente_nombre">
+            <input type="hidden" name="codigo_interno" id="reclamo_v_codigo">
+            <input type="hidden" name="descripcion" id="reclamo_v_desc">
+            <input type="hidden" name="precio_unitario" id="reclamo_v_precio">
+            <h3 class="text-sm font-bold text-slate-800">2. Seleccionar Producto y Acción</h3>
+            <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase">
+                    <th class="p-2">Código</th>
+                    <th class="p-2">Descripción</th>
+                    <th class="p-2">Precio</th>
+                    <th class="p-2">Cant.</th>
+                    <th class="p-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaProductosFacturaVentaBody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+            <div id="panelOpcionesVenta" class="hidden grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl border border-blue-200">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Producto</label>
+                <input type="text" id="displayProductoSeleccionadoV" readonly class="w-full border border-slate-200 rounded-lg p-2 text-xs bg-slate-100 font-bold text-blue-900">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad Devuelta</label>
+                <input type="number" name="cantidad" id="reclamo_v_cantidad" min="1" value="1" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold" required>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Acción</label>
+                <select name="opcion_reclamo" id="selectOpcionReclamoV" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold">
+                  <option value="Cambio">1. Cambiar producto (Entrega de Reposición)</option>
+                  <option value="Reintegro">2. Devolver dinero al cliente (Reembolso)</option>
+                  <option value="Descuento" id="optDescuentoVenta">3. Descontar de su saldo pendiente (Crédito)</option>
+                </select>
+              </div>
+              <div class="md:col-span-3">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
+                <input type="text" name="motivo" value="Pieza en mal estado / Falla prematura" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+              </div>
+              <div class="md:col-span-3">
+                <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 rounded-xl text-xs shadow cursor-pointer">✓ Procesar Garantía</button>
+              </div>
+            </div>
+          </form>
+
+          <div class="space-y-3">
+            <h3 class="text-sm font-bold text-blue-900">🛡️ Garantías y Devoluciones de Clientes</h3>
+            {% if devoluciones_ventas_data %}
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 uppercase">
+                    <th class="p-2.5">Factura</th>
+                    <th class="p-2.5">Cliente</th>
+                    <th class="p-2.5">Producto</th>
+                    <th class="p-2.5 text-center">Cant.</th>
+                    <th class="p-2.5">Monto</th>
+                    <th class="p-2.5">Estado</th>
+                    <th class="p-2.5 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  {% for dev in devoluciones_ventas_data %}
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-2.5 font-mono font-bold text-blue-900">{{ dev.referencia_factura }}</td>
+                    <td class="p-2.5">{{ dev.tercero }}</td>
+                    <td class="p-2.5"><span class="font-bold">{{ dev.descripcion }}</span><br><span class="text-slate-500 font-mono text-[10px]">{{ dev.codigo_interno }}</span></td>
+                    <td class="p-2.5 text-center font-bold text-emerald-700">{{ dev.cantidad }} un.</td>
+                    <td class="p-2.5 font-bold font-mono">$ {{ "{:,.2f}".format(dev.monto_afectado | float) }}</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-800">{{ dev.opcion_reclamo }}</span><br><span class="text-[10px] text-slate-500">{{ dev.estado }}</span></td>
+                    <td class="p-2.5 text-center space-x-1">
+                      {% if dev.opcion_reclamo == 'Cambio de Producto' and 'Entregado' not in dev.estado %}
+                        <a href="{{ url_for('resolver_devolucion', dev_id=dev.id, accion='entregar_cambio_cliente') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold inline-block">✓ Entregado</a>
+                      {% endif %}
+                      <a href="{{ url_for('resolver_devolucion', dev_id=dev.id, accion='eliminar') }}" onclick="return confirm('¿Eliminar registro?')" class="text-slate-400 hover:text-red-600 px-1.5 py-1 font-bold">🗑️</a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 11: ARQUEO DE CAJA + SEPARACIÓN DE SERVICIOS Y PRESUPUESTO DE GASTOS -->
+    <div id="pestaña11" class="tab-content hidden space-y-6">
+      <section class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2.5">
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-emerald-300 bg-emerald-50/40">
+          <span class="text-[9px] font-bold text-emerald-800 uppercase block">💵 Efectivo Gaveta</span>
+          <h4 class="text-sm font-extrabold text-emerald-800 mt-1">$ {{ "{:,.2f}".format(caja_efectivo_neto | float) }}</h4>
+          {% if caja_efectivo_egr > 0 %}<span class="text-[8px] text-red-600 font-bold block mt-0.5">(-${{ "{:,.2f}".format(caja_efectivo_egr | float) }})</span>{% endif %}
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-teal-300 bg-teal-50/40">
+          <span class="text-[9px] font-bold text-teal-800 uppercase block">💵 Dólar Gaveta ($)</span>
+          <h4 class="text-sm font-extrabold text-teal-900 mt-1">$ {{ "{:,.2f}".format(caja_dolar_efectivo_usd | float) }} USD</h4>
+          <span class="text-[8px] text-teal-700 font-semibold block mt-0.5">≈ ${{ "{:,.0f}".format(caja_dolar_efectivo_cop | float) }} COP</span>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-purple-200">
+          <span class="text-[9px] font-bold text-purple-800 uppercase block">🟣 Nequi</span>
+          <h4 class="text-sm font-extrabold text-purple-900 mt-1">$ {{ "{:,.2f}".format(caja_nequi | float) }}</h4>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-amber-200">
+          <span class="text-[9px] font-bold text-amber-800 uppercase block">🟡 Bancolombia</span>
+          <h4 class="text-sm font-extrabold text-amber-900 mt-1">$ {{ "{:,.2f}".format(caja_bancolombia | float) }}</h4>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-red-200">
+          <span class="text-[9px] font-bold text-red-800 uppercase block">🔴 Daviplata</span>
+          <h4 class="text-sm font-extrabold text-red-900 mt-1">$ {{ "{:,.2f}".format(caja_daviplata | float) }}</h4>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-blue-200">
+          <span class="text-[9px] font-bold text-blue-800 uppercase block">🏛️ Transferencias</span>
+          <h4 class="text-sm font-extrabold text-blue-900 mt-1">$ {{ "{:,.2f}".format(caja_transferencia | float) }}</h4>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-blue-300 bg-blue-50/40">
+          <span class="text-[9px] font-bold text-blue-900 uppercase block">💲 Zelle ($ USD)</span>
+          <h4 class="text-sm font-extrabold text-blue-900 mt-1">$ {{ "{:,.2f}".format(caja_zelle_usd | float) }} USD</h4>
+          <span class="text-[8px] text-blue-700 font-semibold block mt-0.5">≈ ${{ "{:,.0f}".format(caja_zelle_cop | float) }} COP</span>
+        </div>
+        <div class="col-span-2 sm:col-span-4 md:col-span-1 bg-blue-900 text-white rounded-2xl shadow-md p-3.5">
+          <span class="text-[9px] font-bold text-blue-200 uppercase block">💰 Total (COP)</span>
+          <h4 class="text-sm font-extrabold text-emerald-300 mt-1">$ {{ "{:,.2f}".format(caja_gran_total | float) }}</h4>
+        </div>
+      </section>
+
+      <!-- TARJETAS COMPARATIVAS: SERVICIOS VS REPUESTOS Y PRESUPUESTOS DE GASTOS -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl">
+          <span class="text-[10px] font-bold text-indigo-900 uppercase block">🔧 Ingresos por Servicios (Taller)</span>
+          <h4 class="text-base font-extrabold text-indigo-900 mt-1">$ {{ "{:,.2f}".format(caja_ingresos_servicios | float) }}</h4>
+          <span class="text-[9px] text-slate-500">Mano de obra, limpieza de inyectores, etc.</span>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl">
+          <span class="text-[10px] font-bold text-emerald-900 uppercase block">📦 Ingresos por Repuestos</span>
+          <h4 class="text-base font-extrabold text-emerald-900 mt-1">$ {{ "{:,.2f}".format(caja_ingresos_repuestos | float) }}</h4>
+          <span class="text-[9px] text-slate-500">Ventas físicas de mostrador.</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-300 p-3.5 rounded-xl">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold text-slate-700 uppercase">🏢 Presupuesto Gastos Fijos</span>
+            <span class="text-[9px] font-mono text-slate-500">Meta: ${{ "{:,.0f}".format(config.get('presupuesto_fijos', 2500000)|float) }}</span>
+          </div>
+          <h4 class="text-base font-extrabold text-slate-900 mt-1">$ {{ "{:,.2f}".format(presup_fijos_restante | float) }}</h4>
+          <span class="text-[9px] text-slate-500">Disponible restante para arriendo y fijos.</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-300 p-3.5 rounded-xl">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold text-slate-700 uppercase">💸 Presupuesto Gastos Variables</span>
+            <span class="text-[9px] font-mono text-slate-500">Meta: ${{ "{:,.0f}".format(config.get('presupuesto_variables', 1200000)|float) }}</span>
+          </div>
+          <h4 class="text-base font-extrabold text-slate-900 mt-1">$ {{ "{:,.2f}".format(presup_vars_restante | float) }}</h4>
+          <span class="text-[9px] text-slate-500">Disponible restante para fletes, compras menores.</span>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl shadow-md p-5 border border-slate-200 space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">💸 Registrar Salida de Dinero (Gasto)</h3>
+          <form action="{{ url_for('registrar_gasto_caja') }}" method="POST" class="space-y-3 pt-1">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Concepto del Gasto</label>
+              <input type="text" name="concepto_gasto" placeholder="Ej: Flete moto repuesto urgente" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none" required>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Clasificación</label>
+                <select name="tipo_gasto" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold">
+                  <option value="Variable">Variable (Fletes, aseo, taxi)</option>
+                  <option value="Fijo">Fijo (Arriendo, servicios, sueldo)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Canal</label>
+                <select name="metodo_gasto" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold">
+                  <option value="Efectivo">💵 Efectivo (Gaveta)</option>
+                  <option value="Nequi">🟣 Nequi</option>
+                  <option value="Bancolombia">🟡 Bancolombia</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Monto ($ COP)</label>
+                <input type="number" step="any" name="monto_gasto" placeholder="Ej: 15000" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-red-600 focus:outline-none" required>
+              </div>
+            </div>
+            <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-xl text-xs transition-colors cursor-pointer">- Registrar Egreso</button>
+          </form>
+        </div>
+
+        <div class="md:col-span-2 bg-white rounded-2xl shadow-md p-5 border border-slate-200 space-y-3 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-blue-900">🔒 Finalizar Turno y Cerrar Caja Diaria</h3>
+            <p class="text-xs text-slate-500">Genera el comprobante en PDF a nombre de Dayana Rujano, concilia cobros y resetea la caja a $ 0.00.</p>
+          </div>
+          <form action="{{ url_for('cerrar_arqueo_caja') }}" method="POST" onsubmit="return confirm('¿Confirmas el cierre definitivo de caja?')" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Observaciones</label>
+              <input type="text" name="observaciones_cierre" value="Cierre de turno regular sin novedades" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
+            </div>
+            <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2">
+              <span>📄 Finalizar Arqueo y Descargar Soporte (PDF)</span>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="text-sm font-bold text-slate-800">⏱️ Movimientos en Vivo del Turno Actual</h3>
+          <span class="text-xs bg-blue-100 text-blue-800 font-bold px-2.5 py-1 rounded-full">{{ movimientos_caja_activa|length }} Movimientos</span>
+        </div>
+        {% if movimientos_caja_activa %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Hora</th>
+                <th class="p-2.5">Tipo</th>
+                <th class="p-2.5">Referencia</th>
+                <th class="p-2.5">Concepto / Cliente</th>
+                <th class="p-2.5">Canal</th>
+                <th class="p-2.5 text-right">Monto COP</th>
+                <th class="p-2.5 text-right">Monto USD</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for m in movimientos_caja_activa %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-mono text-slate-500">{{ m.fecha.split()[-1] if ' ' in m.fecha else m.fecha }}</td>
+                <td class="p-2.5">
+                  <span class="px-2 py-0.5 rounded-full font-bold text-[10px] {% if m.tipo == 'Egreso Gasto' %}bg-red-100 text-red-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">{{ m.tipo }}</span>
+                </td>
+                <td class="p-2.5 font-bold text-blue-900 font-mono">{{ m.referencia }}</td>
+                <td class="p-2.5 text-slate-800 font-medium">{{ m.concepto }}</td>
+                <td class="p-2.5 font-bold text-slate-700">{{ m.metodo }}</td>
+                <td class="p-2.5 text-right font-bold font-mono {% if m.tipo == 'Egreso Gasto' %}text-red-600{% else %}text-emerald-700{% endif %}">
+                  {% if m.tipo == 'Egreso Gasto' %}-{% endif %}$ {{ "{:,.2f}".format(m.monto | float) }}
+                </td>
+                <td class="p-2.5 text-right font-mono text-blue-900 font-bold">
+                  {% if m.monto_usd > 0 %}$ {{ "{:,.2f}".format(m.monto_usd | float) }} USD{% else %}-{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-6 text-slate-400 text-xs italic">Caja limpia. No hay movimientos activos en este turno.</div>
+        {% endif %}
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-3">📜 Historial de Cierres Diarios</h3>
+        {% if cierres_historico %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase">
+                <th class="p-2.5">Nro.</th>
+                <th class="p-2.5">Fecha</th>
+                <th class="p-2.5">Efectivo Gaveta</th>
+                <th class="p-2.5">Dólar Gaveta</th>
+                <th class="p-2.5">Zelle</th>
+                <th class="p-2.5">Total Conciliado</th>
+                <th class="p-2.5 text-center">PDF</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for ch in cierres_historico %}
+              <tr class="hover:bg-slate-50">
+                <td class="p-2.5 font-bold font-mono text-blue-900"># C-00{{ ch.id }}</td>
+                <td class="p-2.5 text-slate-600">{{ ch.fecha }}</td>
+                <td class="p-2.5 font-bold text-slate-700 font-mono">$ {{ "{:,.2f}".format(ch.efectivo | float) }}</td>
+                <td class="p-2.5 text-teal-800 font-mono font-bold">$ {{ "{:,.2f}".format(ch.dolar_efectivo_usd | float) }} USD</td>
+                <td class="p-2.5 text-blue-800 font-mono font-bold">$ {{ "{:,.2f}".format(ch.zelle_usd | float) }} USD</td>
+                <td class="p-2.5 font-extrabold text-emerald-700 font-mono">$ {{ "{:,.2f}".format(ch.gran_total | float) }}</td>
+                <td class="p-2.5 text-center">
+                  <a href="{{ url_for('descargar_pdf_cierre', cierre_id=ch.id) }}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded text-xs font-bold inline-block">📄 PDF</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- PESTAÑA 12: CONCILIACIÓN DIAN, RETEFUENTE, UVT & TAREAS -->
+    <div id="pestaña12" class="tab-content hidden space-y-6">
+      <!-- BLOQUE FISCAL DIAN: CONTADORES DE IVA, RETEFUENTE Y UVT -->
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+              <span>🏛️</span> Conciliación Fiscal DIAN (IVA y ReteFuente)
+            </h2>
+            <p class="text-xs text-slate-500">Cruce matemático exacto del Formulario 300 (IVA) y Formulario 350 (Retención en la Fuente).</p>
+          </div>
+          <!-- BOTÓN REINICIAR PERÍODO DE IVA -->
+          <a href="{{ url_for('liquidar_periodo_iva') }}" onclick="return confirm('¿Confirmas que has presentado y pagado la declaración ante la DIAN? Se reiniciarán los contadores de IVA y ReteFuente a $ 0.00 para el nuevo período.')" class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow flex items-center gap-1.5 cursor-pointer">
+            <span>🧹</span> Reiniciar Período Fiscal ($ 0.00)
+          </a>
+        </div>
+
+        <!-- TARJETAS FISCALES IVA Y RETEFUENTE -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <div class="bg-blue-50/60 border border-blue-200 p-3.5 rounded-xl">
+            <span class="text-[10px] font-bold text-blue-900 uppercase block">📥 IVA Descontable (Compras)</span>
+            <h3 class="text-base font-extrabold text-blue-900 mt-1">$ {{ "{:,.2f}".format(iva_compras_descontable | float) }}</h3>
+            <p class="text-[9px] text-slate-500 mt-0.5">Pagado a proveedores.</p>
+          </div>
+          <div class="bg-emerald-50/60 border border-emerald-200 p-3.5 rounded-xl">
+            <span class="text-[10px] font-bold text-emerald-800 uppercase block">🧾 IVA Generado (Ventas)</span>
+            <h3 class="text-base font-extrabold text-emerald-800 mt-1">$ {{ "{:,.2f}".format(iva_ventas_generado | float) }}</h3>
+            <p class="text-[9px] text-slate-500 mt-0.5">Cobrado a clientes (19%).</p>
+          </div>
+          <div class="p-3.5 rounded-xl border {% if iva_dian_balance >= 0 %}bg-amber-50/60 border-amber-300{% else %}bg-purple-50/60 border-purple-300{% endif %}">
+            <span class="text-[10px] font-bold uppercase block {% if iva_dian_balance >= 0 %}text-amber-900{% else %}text-purple-900{% endif %}">
+              {% if iva_dian_balance >= 0 %}⚖️ IVA Neto por Pagar DIAN{% else %}⚖️ IVA Saldo a Favor Negocio{% endif %}
+            </span>
+            <h3 class="text-base font-extrabold mt-1 {% if iva_dian_balance >= 0 %}text-amber-900{% else %}text-purple-900{% endif %}">
+              $ {{ "{:,.2f}".format(iva_dian_balance | abs | float) }}
+            </h3>
+            <p class="text-[9px] mt-0.5 {% if iva_dian_balance >= 0 %}text-amber-800 font-semibold{% else %}text-purple-800 font-semibold{% endif %}">
+              {% if iva_dian_balance >= 0 %}Monto a pagar.{% else %}Saldo a favor acumulado.{% endif %}
+            </p>
+          </div>
+          <div class="bg-red-50/60 border border-red-200 p-3.5 rounded-xl">
+            <span class="text-[10px] font-bold text-red-900 uppercase block">🏛️ ReteFuente por Pagar (F-350)</span>
+            <h3 class="text-base font-extrabold text-red-900 mt-1">$ {{ "{:,.2f}".format(retefuente_compras_por_pagar | float) }}</h3>
+            <p class="text-[9px] text-slate-500 mt-0.5">Retenida a proveedores (2.5%).</p>
+          </div>
+          <div class="bg-indigo-50/60 border border-indigo-200 p-3.5 rounded-xl">
+            <span class="text-[10px] font-bold text-indigo-900 uppercase block">🛡️ ReteFuente a Favor (Anticipo)</span>
+            <h3 class="text-base font-extrabold text-indigo-900 mt-1">$ {{ "{:,.2f}".format(retefuente_ventas_a_favor | float) }}</h3>
+            <p class="text-[9px] text-slate-500 mt-0.5">Retenida por clientes empresas.</p>
+          </div>
+        </div>
+
+        <!-- CONFIGURADOR DE UVT Y METAS DE PRESUPUESTO -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2">
+          <form action="{{ url_for('actualizar_configuracion_uvt') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Unidad UVT ($ COP)</label>
+              <input type="number" step="any" name="valor_uvt" value="{{ config.get('valor_uvt', 52374) }}" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-blue-900 bg-white focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Presupuesto Gastos Fijos ($)</label>
+              <input type="number" step="any" name="presupuesto_fijos" value="{{ config.get('presupuesto_fijos', 2500000) }}" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Presupuesto Gastos Variables ($)</label>
+              <input type="number" step="any" name="presupuesto_variables" value="{{ config.get('presupuesto_variables', 1200000) }}" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white focus:outline-none" required>
+            </div>
+            <div>
+              <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs shadow cursor-pointer">
+                💾 Actualizar Parámetros
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- SECCIÓN BLOC DE TAREAS Y OBLIGACIONES -->
+      <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-5">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <span>📌</span> Bloc de Tareas y Recordatorios de Obligaciones
+            </h3>
+            <p class="text-xs text-slate-500">Recordatorios de fechas para la DIAN, servicios públicos, arriendos y trámites.</p>
+          </div>
+          <span class="bg-blue-50 text-blue-900 font-bold px-3 py-1.5 rounded-xl border border-blue-200 text-xs">
+            🔔 {{ tareas_pendientes_data|length }} Tareas Pendientes
+          </span>
+        </div>
+
+        <!-- FORMULARIO AGREGAR TAREA -->
+        <form action="{{ url_for('registrar_tarea') }}" method="POST" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Título o Concepto *</label>
+              <input type="text" name="titulo_tarea" placeholder="Ej: Declarar y pagar Retención en la fuente DIAN" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold text-blue-900 focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+              <select name="categoria_tarea" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold focus:outline-none">
+                <option value="🏛️ Impuestos / DIAN">🏛️ Impuestos / DIAN</option>
+                <option value="💡 Servicios Públicos">💡 Servicios Públicos (Aseo, Luz, etc.)</option>
+                <option value="🏢 Arriendo / Gastos Fijos">🏢 Arriendo / Gastos Fijos</option>
+                <option value="📋 Trámites y Legal">📋 Trámites (Cámara Comercio)</option>
+                <option value="⚙️ Operativo / Mantenimiento">⚙️ Operativo / Mantenimiento</option>
+                <option value="📌 General">📌 General / Otro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Fecha Límite</label>
+              <input type="date" name="fecha_vencimiento" class="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Frecuencia</label>
+              <select name="frecuencia_tarea" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-bold focus:outline-none">
+                <option value="Fecha única puntual">Fecha única puntual</option>
+                <option value="Mensual">Mensual</option>
+                <option value="Bimestral">Bimestral</option>
+                <option value="Trimestral">Trimestral</option>
+                <option value="Semestral">Semestral</option>
+                <option value="Anual">Anual</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Detalles / Instrucciones (Opcional)</label>
+              <input type="text" name="descripcion_tarea" placeholder="Ej: Consultar con el contador antes de la fecha..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
+            </div>
+            <div>
+              <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow cursor-pointer">
+                ➕ Guardar en Agenda
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- TABLA OBLIGACIONES PENDIENTES CON ALERTAS DE VENCIMIENTO -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold text-blue-900 uppercase">Obligaciones Pendientes (Por Orden de Urgencia)</h4>
+          {% if tareas_pendientes_data %}
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 uppercase">
+                  <th class="p-2.5">Alerta</th>
+                  <th class="p-2.5">Título & Notas</th>
+                  <th class="p-2.5">Categoría</th>
+                  <th class="p-2.5">Frecuencia</th>
+                  <th class="p-2.5">Vencimiento</th>
+                  <th class="p-2.5 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                {% for t in tareas_pendientes_data %}
+                <tr class="hover:bg-slate-50 {% if 'Vencida' in t.alerta %}bg-red-50/50{% elif 'HOY' in t.alerta %}bg-amber-50/50{% endif %}">
+                  <td class="p-2.5">
+                    {% if 'Vencida' in t.alerta %}
+                      <span class="bg-red-100 text-red-800 border border-red-200 px-2 py-0.5 rounded-full font-extrabold text-[10px] animate-pulse inline-block">{{ t.alerta }}</span>
+                    {% elif 'HOY' in t.alerta %}
+                      <span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px] inline-block">{{ t.alerta }}</span>
+                    {% elif 'Faltan' in t.alerta %}
+                      <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-[10px] inline-block">{{ t.alerta }}</span>
+                    {% else %}
+                      <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold text-[10px] inline-block">{{ t.alerta }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="p-2.5">
+                    <p class="font-bold text-slate-900 text-xs">{{ t.titulo }}</p>
+                    {% if t.descripcion %}<p class="text-[11px] text-slate-500 italic">{{ t.descripcion }}</p>{% endif %}
+                  </td>
+                  <td class="p-2.5 font-semibold text-slate-700">{{ t.categoria }}</td>
+                  <td class="p-2.5 text-slate-600 font-mono">{{ t.frecuencia }}</td>
+                  <td class="p-2.5 font-bold text-blue-900 font-mono">{{ t.fecha_venc }}</td>
+                  <td class="p-2.5 text-center space-x-1">
+                    <a href="{{ url_for('marcar_tarea_realizada', tarea_id=t.id) }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition-colors inline-block cursor-pointer">✓ Realizada</a>
+                    <a href="{{ url_for('eliminar_tarea', tarea_id=t.id) }}" onclick="return confirm('¿Seguro deseas eliminar esta tarea?')" class="bg-slate-100 hover:bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs font-bold inline-block cursor-pointer">🗑️</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl">
+            🎉 ¡Excelente! No tienes tareas ni obligaciones pendientes en tu agenda.
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- HISTORIAL TAREAS REALIZADAS -->
+        {% if tareas_realizadas_data %}
+        <div class="space-y-3 pt-3 border-t border-slate-100">
+          <h4 class="text-xs font-bold text-slate-400 uppercase">Obligaciones Cumplidas ({{ tareas_realizadas_data|length }})</h4>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl opacity-75">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 text-slate-500 uppercase">
+                  <th class="p-2">Estado</th>
+                  <th class="p-2">Título</th>
+                  <th class="p-2">Categoría</th>
+                  <th class="p-2">Vencimiento</th>
+                  <th class="p-2 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                {% for tr in tareas_realizadas_data %}
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2"><span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-[10px]">✓ Cumplida</span></td>
+                  <td class="p-2 line-through text-slate-500 font-medium">{{ tr.titulo }}</td>
+                  <td class="p-2 text-slate-500">{{ tr.categoria }}</td>
+                  <td class="p-2 text-slate-400 font-mono">{{ tr.fecha_venc }}</td>
+                  <td class="p-2 text-center">
+                    <a href="{{ url_for('eliminar_tarea', tarea_id=tr.id) }}" onclick="return confirm('¿Eliminar del historial?')" class="text-slate-400 hover:text-red-600 font-bold px-2 py-1">🗑️</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+  </main>
+
+  <!-- MODAL GESTIÓN DE HASTA 3 FOTOS -->
+  <div id="modalFotosRepuesto" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4" onclick="cerrarModalFotos()">
+    <div class="bg-white rounded-2xl p-6 max-w-xl w-full shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <button type="button" onclick="cerrarModalFotos()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <div>
+        <h3 class="font-bold text-blue-900 text-base" id="modalFotosTitulo">Gestión de Fotos del Repuesto</h3>
+        <p id="modalFotosSubt" class="text-xs text-slate-500"></p>
+      </div>
+      <form id="formFotosRepuesto" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="border border-slate-200 p-3 rounded-xl bg-slate-50 text-center space-y-2">
+            <span class="text-xs font-bold text-slate-700 block">Foto 1 (Principal)</span>
+            <div class="w-full h-28 bg-white border border-slate-300 rounded-lg flex items-center justify-center overflow-hidden">
+              <span class="text-xs text-slate-400 italic" id="emptyFoto1">Sin foto</span>
+              <img id="imgFoto1" src="" onclick="verFotoGrande(this.src, 'Foto 1 - ' + document.getElementById('modalFotosTitulo').innerText)" class="w-full h-full object-cover hidden cursor-zoom-in hover:opacity-90 transition-opacity" title="🔍 Clic para ampliar">
+            </div>
+            <input type="file" name="foto1" id="inputFoto1" accept="image/*" class="text-[10px] w-full text-slate-500">
+            <label class="flex items-center justify-center gap-1 text-[10px] text-red-600 font-semibold cursor-pointer">
+              <input type="checkbox" name="eliminar_foto1" value="1" class="rounded"> Borrar esta foto
+            </label>
+          </div>
+          <div class="border border-slate-200 p-3 rounded-xl bg-slate-50 text-center space-y-2">
+            <span class="text-xs font-bold text-slate-700 block">Foto 2 (Ángulo)</span>
+            <div class="w-full h-28 bg-white border border-slate-300 rounded-lg flex items-center justify-center overflow-hidden">
+              <span class="text-xs text-slate-400 italic" id="emptyFoto2">Sin foto</span>
+              <img id="imgFoto2" src="" onclick="verFotoGrande(this.src, 'Foto 2 - ' + document.getElementById('modalFotosTitulo').innerText)" class="w-full h-full object-cover hidden cursor-zoom-in hover:opacity-90 transition-opacity" title="🔍 Clic para ampliar">
+            </div>
+            <input type="file" name="foto2" id="inputFoto2" accept="image/*" class="text-[10px] w-full text-slate-500">
+            <label class="flex items-center justify-center gap-1 text-[10px] text-red-600 font-semibold cursor-pointer">
+              <input type="checkbox" name="eliminar_foto2" value="1" class="rounded"> Borrar esta foto
+            </label>
+          </div>
+          <div class="border border-slate-200 p-3 rounded-xl bg-slate-50 text-center space-y-2">
+            <span class="text-xs font-bold text-slate-700 block">Foto 3 (Etiqueta/Serial)</span>
+            <div class="w-full h-28 bg-white border border-slate-300 rounded-lg flex items-center justify-center overflow-hidden">
+              <span class="text-xs text-slate-400 italic" id="emptyFoto3">Sin foto</span>
+              <img id="imgFoto3" src="" onclick="verFotoGrande(this.src, 'Foto 3 - ' + document.getElementById('modalFotosTitulo').innerText)" class="w-full h-full object-cover hidden cursor-zoom-in hover:opacity-90 transition-opacity" title="🔍 Clic para ampliar">
+            </div>
+            <input type="file" name="foto3" id="inputFoto3" accept="image/*" class="text-[10px] w-full text-slate-500">
+            <label class="flex items-center justify-center gap-1 text-[10px] text-red-600 font-semibold cursor-pointer">
+              <input type="checkbox" name="eliminar_foto3" value="1" class="rounded"> Borrar esta foto
+            </label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="cerrarModalFotos()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">💾 Guardar Fotos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- VISOR DE FOTOS EN ALTA RESOLUCIÓN (ZOOM / LIGHTBOX) -->
+  <div id="modalVisorFotoGrande" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden z-[60] flex flex-col items-center justify-center p-4" onclick="cerrarFotoGrande()">
+    <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
+      <button type="button" onclick="cerrarFotoGrande()" class="absolute -top-12 right-0 bg-white/20 hover:bg-white text-white hover:text-black w-10 h-10 rounded-full font-bold flex items-center justify-center cursor-pointer transition-colors shadow-lg text-lg">✕</button>
+      <div class="text-center text-white mb-2">
+        <h4 id="visorFotoGrandeTitulo" class="text-sm font-bold tracking-wide drop-shadow"></h4>
+        <p class="text-[11px] text-slate-300">Haz clic afuera o presiona Escape para cerrar</p>
+      </div>
+      <img id="visorFotoGrandeImg" src="" alt="Repuesto en grande" class="max-w-[88vw] max-h-[78vh] object-contain rounded-2xl shadow-2xl border border-white/20 bg-slate-900/60">
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DE FACTURA DE COMPRA DE PROVEEDOR -->
+  <div id="modalDetalleFacturaCompra" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4" onclick="cerrarDetalleFacturaCompra()">
+    <div class="bg-white rounded-2xl p-6 max-w-3xl w-full shadow-2xl relative space-y-4 max-h-[85vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <button onclick="cerrarDetalleFacturaCompra()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <div>
+        <h3 class="font-bold text-blue-900 text-base" id="detalleFacCompTitulo">Detalle de Factura Proveedor</h3>
+        <p id="detalleFacCompSubt" class="text-xs text-slate-500"></p>
+      </div>
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 uppercase">
+              <th class="p-2.5">Código</th>
+              <th class="p-2.5">Descripción</th>
+              <th class="p-2.5 text-center">Stock Registrado</th>
+              <th class="p-2.5">Costo Unitario</th>
+              <th class="p-2.5">Garantía</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDetalleFacturaCompraBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="button" onclick="cerrarDetalleFacturaCompra()" class="bg-blue-900 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ABONO CLIENTE -->
+  <div id="modalAbono" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative space-y-4">
+      <button onclick="cerrarModalAbono()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base" id="tituloModalAbono">Registrar Abono</h3>
+      <p id="subtituloModalAbono" class="text-xs text-slate-500"></p>
+      <form id="formRegistrarAbono" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Monto a Abonar ($ COP)</label>
+          <input type="number" step="any" name="monto_abono" id="inputMontoAbono" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-800 font-bold text-emerald-700" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Canal de Pago</label>
+          <select name="metodo_abono" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white font-bold text-blue-900 focus:outline-none">
+            <option value="Efectivo">💵 Efectivo (Gaveta Física COP)</option>
+            <option value="Nequi">🟣 Nequi</option>
+            <option value="Bancolombia">🟡 Bancolombia</option>
+            <option value="Daviplata">🔴 Daviplata</option>
+            <option value="Transferencia">🏛️ Transferencia Bancaria</option>
+            <option value="Efectivo Dólar ($)">💵 Efectivo Dólar ($ USD)</option>
+            <option value="Zelle ($)">💲 Zelle ($ USD)</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalAbono()" class="bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">Guardar Abono</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL MEJORES PRODUCTOS -->
+  <div id="modalDetalleMejores" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl relative space-y-4 max-h-[80vh] overflow-y-auto">
+      <button onclick="cerrarModalDetalleMejores()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base" id="modalMejoresTitulo">Clientes que han comprado</h3>
+      <p id="modalMejoresSubt" class="text-xs text-slate-500"></p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mt-3">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 uppercase">
+              <th class="p-2.5">Documento</th>
+              <th class="p-2.5">Nombre</th>
+              <th class="p-2.5 text-center">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDetalleMejoresBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="button" onclick="cerrarModalDetalleMejores()" class="bg-blue-900 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ABONO CXP -->
+  <div id="modalAbonoCxP" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative space-y-4">
+      <button onclick="cerrarModalAbonoCxP()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base" id="tituloModalCxP">Registrar Abono a Proveedor</h3>
+      <p id="subtModalCxP" class="text-xs text-slate-500"></p>
+      <form id="formRegistrarAbonoCxP" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Monto a Abonar ($ COP)</label>
+          <input type="number" step="any" name="monto_abono" id="inputMontoAbonoCxP" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-emerald-700 focus:outline-none" required>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalAbonoCxP()" class="bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">Guardar Abono</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE CLIENTE -->
+  <div id="modalDetalleCliente" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative space-y-4 max-h-[80vh] overflow-y-auto">
+      <button onclick="cerrarModalDetalleCliente()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base" id="modalClienteNombre">Detalle de Compras</h3>
+      <p id="modalClienteInfo" class="text-xs text-slate-500"></p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden mt-3">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 uppercase">
+              <th class="p-2.5">Factura</th>
+              <th class="p-2.5">Fecha</th>
+              <th class="p-2.5">Repuesto</th>
+              <th class="p-2.5 text-center">Cant.</th>
+              <th class="p-2.5 text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDetalleClienteBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="button" onclick="cerrarModalDetalleCliente()" class="bg-blue-900 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR PRECIO -->
+  <div id="priceModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4" onclick="cerrarModalPrecio()">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative" onclick="event.stopPropagation()">
+      <button onclick="cerrarModalPrecio()" class="absolute top-3 right-3 bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base mb-1">Actualizar Precio de Venta</h3>
+      <p id="priceModalDesc" class="text-xs text-slate-500 mb-4"></p>
+      <form id="formEditarPrecio" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nuevo Precio ($ COP)</label>
+          <input type="number" step="any" id="inputNuevoPrecio" name="nuevo_precio" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-emerald-700 focus:outline-none" required>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalPrecio()" class="bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DATOS BASE EN MEMORIA SEGURA PARA ELIMINAR ERRORES EN VS CODE -->
+  <script>
+    const INVENTARIO_DB = {{ inventario|tojson }};
+    const MEJORES_PROD_DB = {{ mejores_productos_data|tojson }};
+    const CLIENTES_DB = {{ clientes_data|tojson }};
+    const TOPE_UVT_VALOR = parseFloat("{{ tope_uvt_pesos }}") || 523740.0;
+
+    let cacheItemsProv = {};
+    let cacheItemsVenta = {};
+    let cacheCatalogo = [];
+    let cacheVenta = [];
+    let cachePresupuesto = [];
+
+    let carritoCompra = [];
+    let carritoVenta = [];
+    let carritoPresupuesto = [];
+    let totalBrutoVenta = 0;
+    let totalNetoVenta = 0;
+
+    function cambiarPestaña(idTab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(idTab);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-900', 'text-white');
+        btn.classList.add('bg-white', 'hover:bg-slate-200', 'text-slate-700');
+      });
+      const btnActivo = document.getElementById('btn-' + idTab);
+      if(btnActivo) {
+        btnActivo.classList.remove('bg-white', 'hover:bg-slate-200', 'text-slate-700');
+        btnActivo.classList.add('bg-blue-900', 'text-white');
+      }
+      localStorage.setItem('repuestos_tab_activa', idTab);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabUrl = urlParams.get('tab');
+      const tabStorage = localStorage.getItem('repuestos_tab_activa');
+      cambiarPestaña(tabUrl || tabStorage || 'pestaña1');
+    });
+
+    // VISOR DE FOTOS EN ALTA RESOLUCIÓN
+    function verFotoGrande(srcUrl, titulo) {
+      if (!srcUrl || srcUrl.trim() === '' || srcUrl.endsWith('/')) return;
+      document.getElementById('visorFotoGrandeImg').src = srcUrl;
+      document.getElementById('visorFotoGrandeTitulo').innerText = titulo || 'Vista Ampliada de Repuesto';
+      document.getElementById('modalVisorFotoGrande').classList.remove('hidden');
+    }
+
+    function cerrarFotoGrande() {
+      document.getElementById('modalVisorFotoGrande').classList.add('hidden');
+      document.getElementById('visorFotoGrandeImg').src = '';
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        cerrarFotoGrande();
+        cerrarModalFotos();
+        cerrarDetalleFacturaCompra();
+      }
+    });
+
+    function abrirModalFotosPorId(id) {
+      const item = INVENTARIO_DB.find(x => x.id === id);
+      if(!item) return;
+
+      document.getElementById('modalFotosTitulo').innerText = `Gestión de Fotos: [${item.codigo_interno}]`;
+      document.getElementById('modalFotosSubt').innerText = item.descripcion;
+      document.getElementById('formFotosRepuesto').action = `/subir_fotos_repuesto/${item.id}`;
+
+      ['Foto1', 'Foto2', 'Foto3'].forEach((slot, index) => {
+        const imgField = index === 0 ? item.imagen : (index === 1 ? item.imagen2 : item.imagen3);
+        const imgEl = document.getElementById('img' + slot);
+        const emptyEl = document.getElementById('empty' + slot);
+        if (imgField && imgField.trim() !== '') {
+          imgEl.src = `/static/uploads/${imgField}`;
+          imgEl.classList.remove('hidden');
+          emptyEl.classList.add('hidden');
+        } else {
+          imgEl.src = '';
+          imgEl.classList.add('hidden');
+          emptyEl.classList.remove('hidden');
+        }
+      });
+
+      document.querySelectorAll('#formFotosRepuesto input[type="checkbox"]').forEach(cb => cb.checked = false);
+      document.querySelectorAll('#formFotosRepuesto input[type="file"]').forEach(inp => inp.value = '');
+      document.getElementById('modalFotosRepuesto').classList.remove('hidden');
+    }
+
+    function cerrarModalFotos() {
+      document.getElementById('modalFotosRepuesto').classList.add('hidden');
+    }
+
+    // MODAL VER DETALLE COMPLETO DE FACTURA DE COMPRA
+    async function verDetalleFacturaCompra(nroFactura) {
+      try {
+        const res = await fetch('/detalle_factura_proveedor/' + encodeURIComponent(nroFactura));
+        const data = await res.json();
+        if(!data.encontrado) { alert('Factura no encontrada.'); return; }
+        document.getElementById('detalleFacCompTitulo').innerText = `Factura #${data.nro_factura} (Ctrl: ${data.nro_control})`;
+        document.getElementById('detalleFacCompSubt').innerText = `Proveedor: ${data.proveedor} | Emisión: ${data.fecha} | Total: $${data.total.toLocaleString()} | ReteFuente: $${data.retefuente.toLocaleString()}`;
+        const tbody = document.getElementById('tablaDetalleFacturaCompraBody');
+        let html = '';
+        data.items.forEach(it => {
+          html += `<tr class="hover:bg-slate-50">
+            <td class="p-2.5 font-mono font-bold text-blue-900">${it.codigo}</td>
+            <td class="p-2.5 font-medium">${it.descripcion}</td>
+            <td class="p-2.5 text-center font-bold">${it.stock} un.</td>
+            <td class="p-2.5 text-emerald-700 font-bold">$ ${it.costo.toLocaleString()}</td>
+            <td class="p-2.5 text-slate-600">${it.garantia}</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+        document.getElementById('modalDetalleFacturaCompra').classList.remove('hidden');
+      } catch(e) { console.error(e); }
+    }
+
+    function cerrarDetalleFacturaCompra() {
+      document.getElementById('modalDetalleFacturaCompra').classList.add('hidden');
+    }
+
+    function descargarRetencionYActualizar(url) {
+      window.open(url, '_blank');
+      setTimeout(() => { window.location.href = "{{ url_for('index') }}?tab=pestaña6"; }, 800);
+    }
+
+    // SERVICIOS TÉCNICOS (LIMPIEZA DE INYECTORES, ETC.)
+    function toggleSeccionServicios() {
+      const sec = document.getElementById('seccionAgregarServicio');
+      sec.classList.toggle('hidden');
+    }
+
+    function agregarServicioAlCarrito() {
+      const desc = document.getElementById('serv_descripcion').value.trim();
+      const precio = parseFloat(document.getElementById('serv_precio').value || 0);
+      if(!desc || precio <= 0) { alert('Ingresa concepto y precio del servicio.'); return; }
+      const item = {
+        id: 'SERV-' + Date.now(),
+        codigo: 'SRV-01',
+        descripcion: desc,
+        cantidad: 1,
+        precio: precio,
+        subtotal: precio,
+        es_servicio: true
+      };
+      carritoVenta.push(item);
+      renderizarCarritoVenta();
+      document.getElementById('serv_descripcion').value = '';
+      document.getElementById('serv_precio').value = '';
+      document.getElementById('seccionAgregarServicio').classList.add('hidden');
+    }
+
+    // MODALIDAD DE PAGO EN VENTAS Y CRUCE DE RETEFUENTE
+    function cambiarModalidadPago() {
+      const tipo = document.getElementById('tipo_pago').value;
+      const divPagos = document.getElementById('divDistribucionPagos');
+      const divDias = document.getElementById('divDiasPlazo');
+
+      if(tipo === 'Crédito') {
+        divPagos.classList.add('hidden');
+        divDias.classList.remove('hidden');
+        resetearCanalesPago();
+      } else if(tipo === 'Abono') {
+        divPagos.classList.remove('hidden');
+        divDias.classList.remove('hidden');
+        calcularDistribucionCanales();
+      } else {
+        divPagos.classList.remove('hidden');
+        divDias.classList.add('hidden');
+        if(obtenerSumaCanalesCop() === 0 && totalNetoVenta > 0) {
+          llenarCanalTodo('efectivo');
+        } else {
+          calcularDistribucionCanales();
+        }
+      }
+    }
+
+    function resetearCanalesPago() {
+      ['pago_efectivo','pago_nequi','pago_bancolombia','pago_daviplata','pago_transferencia','pago_dolar_efectivo_usd','pago_zelle_usd'].forEach(id => {
+        document.getElementById(id).value = 0;
+      });
+      calcularDistribucionCanales();
+    }
+
+    function llenarCanalTodo(canal) {
+      resetearCanalesPago();
+      const tasa = parseFloat(document.getElementById('tasa_dolar_venta').value) || 1.0;
+      if(canal === 'zelle') {
+        const usd = totalNetoVenta / (tasa > 0 ? tasa : 1.0);
+        document.getElementById('pago_zelle_usd').value = (Math.round(usd * 100) / 100).toFixed(2);
+      } else if(canal === 'dolar_efectivo') {
+        const usd = totalNetoVenta / (tasa > 0 ? tasa : 1.0);
+        document.getElementById('pago_dolar_efectivo_usd').value = (Math.round(usd * 100) / 100).toFixed(2);
+      } else {
+        document.getElementById('pago_' + canal).value = totalNetoVenta;
+      }
+      calcularDistribucionCanales();
+    }
+
+    function obtenerSumaCanalesCop() {
+      const tasa = parseFloat(document.getElementById('tasa_dolar_venta').value) || 1.0;
+      let sumaCop = 0;
+      ['pago_efectivo','pago_nequi','pago_bancolombia','pago_daviplata','pago_transferencia'].forEach(id => {
+        sumaCop += parseFloat(document.getElementById(id).value || 0);
+      });
+
+      const usdEfectivo = parseFloat(document.getElementById('pago_dolar_efectivo_usd').value || 0);
+      const usdZelle = parseFloat(document.getElementById('pago_zelle_usd').value || 0);
+
+      const equivDolarEf = usdEfectivo * tasa;
+      const equivZelle = usdZelle * tasa;
+
+      document.getElementById('lblEquivDolarEf').innerText = `≈ $ ${equivDolarEf.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} COP`;
+      document.getElementById('lblEquivZelle').innerText = `≈ $ ${equivZelle.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} COP`;
+
+      return sumaCop + equivDolarEf + equivZelle;
+    }
+
+    function calcularDistribucionCanales() {
+      // Cálculo tributario en vivo
+      const esAgente = document.getElementById('es_agente_retencion').value === 'Si';
+      const baseImp = totalBrutoVenta / 1.19;
+      const iva = totalBrutoVenta - baseImp;
+      let rete = 0.0;
+      if(esAgente && baseImp >= TOPE_UVT_VALOR) {
+        rete = baseImp * 0.025;
+        document.getElementById('filaReteVenta').classList.remove('hidden');
+        document.getElementById('lblReteVenta').innerText = `- $ ${rete.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      } else {
+        document.getElementById('filaReteVenta').classList.add('hidden');
+      }
+      totalNetoVenta = Math.max(0, totalBrutoVenta - rete);
+      
+      document.getElementById('lblBaseVenta').innerText = `$ ${baseImp.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('lblIvaVenta').innerText = `$ ${iva.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('totalGeneralText').innerText = `$ ${totalNetoVenta.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+      const suma = obtenerSumaCanalesCop();
+      const tipo = document.getElementById('tipo_pago').value;
+      document.getElementById('lblTotalDistribuido').innerText = `$ ${suma.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+      const lblDif = document.getElementById('lblDiferenciaPago');
+      if(tipo === 'Contado') {
+        const dif = totalNetoVenta - suma;
+        if(Math.abs(dif) < 1.0) {
+          lblDif.innerHTML = `<span class="text-emerald-700 font-bold">✓ Monto exacto cubierto</span>`;
+        } else if(dif > 0) {
+          lblDif.innerHTML = `<span class="text-amber-700 font-bold">Faltan por cubrir: $ ${dif.toLocaleString(undefined, {minimumFractionDigits: 2})} COP</span>`;
+        } else {
+          lblDif.innerHTML = `<span class="text-red-600 font-bold">Supera el total por: $ ${Math.abs(dif).toLocaleString(undefined, {minimumFractionDigits: 2})} COP</span>`;
+        }
+      } else if(tipo === 'Abono') {
+        const restante = Math.max(0, totalNetoVenta - suma);
+        lblDif.innerHTML = `<span class="text-blue-900 font-bold">Abono: $ ${suma.toLocaleString(undefined, {minimumFractionDigits: 2})} COP | Resta: $ ${restante.toLocaleString(undefined, {minimumFractionDigits: 2})} COP</span>`;
+      } else {
+        lblDif.innerText = '';
+      }
+    }
+
+    // PESTAÑA 10: RECLAMOS
+    function toggleSubSeccionReclamos(tipo) {
+      const btnCompras = document.getElementById('btnSubTabCompras');
+      const btnVentas = document.getElementById('btnSubTabVentas');
+      const secCompras = document.getElementById('seccionReclamoCompras');
+      const secVentas = document.getElementById('seccionReclamoVentas');
+
+      if(tipo === 'compras') {
+        secCompras.classList.remove('hidden');
+        secVentas.classList.add('hidden');
+        btnCompras.className = "bg-blue-900 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow cursor-pointer";
+        btnVentas.className = "bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm hover:bg-slate-300 transition-colors cursor-pointer";
+      } else {
+        secCompras.classList.add('hidden');
+        secVentas.classList.remove('hidden');
+        btnVentas.className = "bg-blue-900 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow cursor-pointer";
+        btnCompras.className = "bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm hover:bg-slate-300 transition-colors cursor-pointer";
+      }
+    }
+
+    async function buscarFacturaProveedorReclamo() {
+      const nro = document.getElementById('inputBuscarFacProvReclamo').value.trim();
+      const infoDiv = document.getElementById('infoFacProvReclamo');
+      const formReclamo = document.getElementById('formReclamoCompra');
+      const tbody = document.getElementById('tablaProductosFacturaProvBody');
+      if(!nro) { alert('Ingresa un número de factura.'); return; }
+      try {
+        const res = await fetch('/buscar_factura_proveedor_reclamo?nro=' + encodeURIComponent(nro));
+        const data = await res.json();
+        if(!data.encontrado) {
+          infoDiv.className = "p-3 rounded-lg border text-xs bg-red-50 border-red-200 text-red-700";
+          infoDiv.innerHTML = "❌ No se encontró ninguna factura con ese número.";
+          infoDiv.classList.remove('hidden');
+          formReclamo.classList.add('hidden');
+          return;
+        }
+        infoDiv.className = "p-3 rounded-lg border text-xs bg-blue-50 border-blue-200 text-blue-900";
+        infoDiv.innerHTML = `<strong>Proveedor:</strong> ${data.proveedor} | <strong>Total:</strong> $${data.total.toLocaleString()} | <strong>Deuda:</strong> $${data.restante.toLocaleString()} (${data.estado_pago})`;
+        infoDiv.classList.remove('hidden');
+        document.getElementById('reclamo_c_nro_factura').value = data.nro_factura;
+        document.getElementById('reclamo_c_proveedor').value = data.proveedor;
+        cacheItemsProv = {};
+        if(!data.items || data.items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-slate-400 italic">No hay productos asociados.</td></tr>`;
+        } else {
+          let html = '';
+          data.items.forEach(it => {
+            cacheItemsProv[it.id] = it;
+            html += `<tr class="hover:bg-slate-50">
+              <td class="p-2 font-mono font-bold text-blue-900">${it.codigo_interno}</td>
+              <td class="p-2">${it.descripcion}</td>
+              <td class="p-2">$ ${it.costo.toLocaleString()}</td>
+              <td class="p-2">${it.stock} un.</td>
+              <td class="p-2 text-center">
+                <button type="button" onclick="seleccionarItemReclamoCPorId(${it.id})" class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-3 py-1 rounded text-xs cursor-pointer">Seleccionar</button>
+              </td>
+            </tr>`;
+          });
+          tbody.innerHTML = html;
+        }
+        formReclamo.classList.remove('hidden');
+      } catch(e) { console.error(e); }
+    }
+
+    function seleccionarItemReclamoCPorId(id) {
+      const it = cacheItemsProv[id];
+      if(!it) return;
+      document.getElementById('reclamo_c_item_id').value = it.id;
+      document.getElementById('reclamo_c_codigo').value = it.codigo_interno;
+      document.getElementById('reclamo_c_desc').value = it.descripcion;
+      document.getElementById('reclamo_c_costo').value = it.costo;
+      document.getElementById('displayProductoSeleccionadoC').value = `[${it.codigo_interno}] ${it.descripcion}`;
+      document.getElementById('panelOpcionesCompra').classList.remove('hidden');
+    }
+
+    async function buscarFacturaVentaReclamo() {
+      const nro = document.getElementById('inputBuscarFacVentaReclamo').value.trim();
+      const infoDiv = document.getElementById('infoFacVentaReclamo');
+      const formReclamo = document.getElementById('formReclamoVenta');
+      const tbody = document.getElementById('tablaProductosFacturaVentaBody');
+      if(!nro) { alert('Ingresa un número de factura de venta.'); return; }
+      try {
+        const res = await fetch('/buscar_factura_venta_reclamo?nro=' + encodeURIComponent(nro));
+        const data = await res.json();
+        if(!data.encontrado) {
+          infoDiv.className = "p-3 rounded-lg border text-xs bg-red-50 border-red-200 text-red-700";
+          infoDiv.innerHTML = "❌ No se encontró la factura.";
+          infoDiv.classList.remove('hidden');
+          formReclamo.classList.add('hidden');
+          return;
+        }
+        infoDiv.className = "p-3 rounded-lg border text-xs bg-blue-50 border-blue-200 text-blue-900";
+        infoDiv.innerHTML = `<strong>Cliente:</strong> ${data.cliente_nombre} | <strong>Total:</strong> $${data.total.toLocaleString()} | <strong>Deuda:</strong> $${data.restante.toLocaleString()} (${data.estado_pago})`;
+        infoDiv.classList.remove('hidden');
+        document.getElementById('reclamo_v_factura_id').value = data.factura_id;
+        document.getElementById('reclamo_v_cliente_nombre').value = data.cliente_nombre;
+
+        // BLOQUEO INTELIGENTE SI ESTÁ PAGADA COMPLETA
+        const optDescuento = document.getElementById('optDescuentoVenta');
+        if(data.estado_pago === 'Pagado' || data.restante <= 0) {
+          optDescuento.disabled = true;
+          optDescuento.innerText = '3. Descontar (BLOQUEADO: Factura pagada al 100%)';
+          document.getElementById('selectOpcionReclamoV').value = 'Cambio';
+        } else {
+          optDescuento.disabled = false;
+          optDescuento.innerText = '3. Descontar de su saldo pendiente (Crédito)';
+        }
+
+        cacheItemsVenta = {};
+        if(!data.items || data.items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-slate-400 italic">No hay productos en esta factura.</td></tr>`;
+        } else {
+          let html = '';
+          data.items.forEach(it => {
+            cacheItemsVenta[it.id] = it;
+            html += `<tr class="hover:bg-slate-50">
+              <td class="p-2 font-mono font-bold text-blue-900">${it.codigo_interno}</td>
+              <td class="p-2">${it.descripcion}</td>
+              <td class="p-2">$ ${it.precio.toLocaleString()}</td>
+              <td class="p-2">${it.cantidad} un.</td>
+              <td class="p-2 text-center">
+                <button type="button" onclick="seleccionarItemReclamoVPorId(${it.id})" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1 rounded text-xs cursor-pointer">Seleccionar</button>
+              </td>
+            </tr>`;
+          });
+          tbody.innerHTML = html;
+        }
+        formReclamo.classList.remove('hidden');
+      } catch(e) { console.error(e); }
+    }
+
+    function seleccionarItemReclamoVPorId(id) {
+      const it = cacheItemsVenta[id];
+      if(!it) return;
+      document.getElementById('reclamo_v_codigo').value = it.codigo_interno;
+      document.getElementById('reclamo_v_desc').value = it.descripcion;
+      document.getElementById('reclamo_v_precio').value = it.precio;
+      document.getElementById('displayProductoSeleccionadoV').value = `[${it.codigo_interno}] ${it.descripcion}`;
+      document.getElementById('panelOpcionesVenta').classList.remove('hidden');
+    }
+
+    // CATÁLOGO ENTRADA
+    async function buscarRepuestosCatalogoReal() {
+      const q = document.getElementById('inputBuscarCatalogo').value.trim();
+      const contenedor = document.getElementById('resultadosCatalogo');
+      if (q.length < 1) { contenedor.classList.add('hidden'); contenedor.innerHTML = ''; return; }
+      try {
+        const response = await fetch('/buscar_repuestos_inventario_json?q=' + encodeURIComponent(q));
+        const items = await response.json();
+        cacheCatalogo = items;
+        if (items.length > 0) {
+          let html = '';
+          items.forEach((i, idx) => {
+            html += `<div onclick="seleccionarItemCatalogoPorIdx(${idx})" class="p-2.5 hover:bg-slate-100 cursor-pointer border-b border-slate-100 text-xs">
+              <span class="font-bold text-blue-900">[${i.codigo_interno}]</span> ${i.descripcion} | Costo: $${i.costo}
+            </div>`;
+          });
+          contenedor.innerHTML = html;
+          contenedor.classList.remove('hidden');
+        } else {
+          contenedor.innerHTML = '<div class="p-3 text-xs text-slate-400 italic">No existe en el catálogo. Se creará como nuevo código.</div>';
+          contenedor.classList.remove('hidden');
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    function seleccionarItemCatalogoPorIdx(idx) {
+      const i = cacheCatalogo[idx];
+      if(!i) return;
+      document.getElementById('add_codigo_interno').value = i.codigo_interno;
+      document.getElementById('add_descripcion').value = i.descripcion;
+      document.getElementById('add_categoria').value = i.categoria;
+      document.getElementById('add_codigo_barras').value = i.codigo_barras;
+      document.getElementById('add_codigo_opcional').value = i.codigo_opcional;
+      document.getElementById('add_costo').value = i.costo;
+      document.getElementById('add_precio_venta').value = i.precio_venta;
+      document.getElementById('prov_nombre').value = i.proveedor || '';
+      document.getElementById('resultadosCatalogo').classList.add('hidden');
+      document.getElementById('inputBuscarCatalogo').value = `[${i.codigo_interno}] ${i.descripcion}`;
+    }
+
+    function agregarItemCarritoCompra() {
+      const codigo_interno = document.getElementById('add_codigo_interno').value.trim();
+      const descripcion = document.getElementById('add_descripcion').value.trim();
+      const categoria = document.getElementById('add_categoria').value;
+      const codigo_barras = document.getElementById('add_codigo_barras').value.trim();
+      const codigo_opcional = document.getElementById('add_codigo_opcional').value.trim();
+      const serial = document.getElementById('add_serial').value.trim();
+      const costo = parseFloat(document.getElementById('add_costo').value || 0);
+      const precio_venta = parseFloat(document.getElementById('add_precio_venta').value || 0);
+      const cantidad = parseFloat(document.getElementById('add_stock').value || 1);
+      const garantia = document.getElementById('add_garantia').value.trim();
+      if (!codigo_interno || !descripcion || costo <= 0) {
+        alert('Completa Código Interno, Descripción y Costo.');
+        return;
+      }
+      const subtotal = costo * cantidad;
+      carritoCompra.push({ codigo_interno, descripcion, categoria, codigo_barras, codigo_opcional, serial, costo, precio_venta, cantidad, garantia, subtotal });
+      renderizarCarritoCompra();
+      limpiarCamposEntradaItem();
+    }
+
+    function limpiarCamposEntradaItem() {
+      document.getElementById('add_codigo_interno').value = '';
+      document.getElementById('add_descripcion').value = '';
+      document.getElementById('add_codigo_barras').value = '';
+      document.getElementById('add_codigo_opcional').value = '';
+      document.getElementById('add_serial').value = '';
+      document.getElementById('add_costo').value = '';
+      document.getElementById('add_precio_venta').value = '';
+      document.getElementById('add_stock').value = '1';
+      document.getElementById('inputBuscarCatalogo').value = '';
+    }
+
+    function eliminarDelCarritoCompra(index) { carritoCompra.splice(index, 1); renderizarCarritoCompra(); }
+
+    function renderizarCarritoCompra() {
+      const tbody = document.getElementById('tablaCarritoCompraBody');
+      if (carritoCompra.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400 italic">El carrito está vacío. Agrega repuestos arriba.</td></tr>`;
+        document.getElementById('totalCarritoCompraText').innerText = '$ 0.00';
+        return;
+      }
+      let html = '';
+      let totalGeneral = 0;
+      carritoCompra.forEach((item, index) => {
+        totalGeneral += item.subtotal;
+        html += `<tr class="hover:bg-slate-50">
+          <td class="p-2.5 font-mono font-bold text-blue-900">${item.codigo_interno}</td>
+          <td class="p-2.5"><p class="font-medium text-slate-900">${item.descripcion}</p></td>
+          <td class="p-2.5 text-center font-bold">${item.cantidad} un.</td>
+          <td class="p-2.5 text-slate-700">$ ${item.costo.toLocaleString()}</td>
+          <td class="p-2.5 font-bold text-emerald-700">$ ${item.subtotal.toLocaleString()}</td>
+          <td class="p-2.5 text-center">
+            <button type="button" onclick="eliminarDelCarritoCompra(${index})" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs font-bold cursor-pointer">🗑️</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+      document.getElementById('totalCarritoCompraText').innerText = `$ ${totalGeneral.toLocaleString()}`;
+    }
+
+    function enviarFacturaProveedorFinal() {
+      const nro_factura = document.getElementById('prov_nro_factura').value.trim();
+      const proveedor = document.getElementById('prov_nombre').value.trim();
+      if (!nro_factura || !proveedor) { alert('Completa el Nro. de Factura y el Proveedor.'); return; }
+      if (carritoCompra.length === 0) { alert('El carrito está vacío.'); return; }
+      document.getElementById('hidden_nro_factura').value = nro_factura;
+      document.getElementById('hidden_nro_control').value = document.getElementById('prov_nro_control').value.trim();
+      document.getElementById('hidden_proveedor').value = proveedor;
+      document.getElementById('hidden_aplica_iva').value = document.getElementById('prov_aplica_iva').value;
+      document.getElementById('hidden_declara_renta').value = document.getElementById('prov_declara_renta').value;
+      document.getElementById('hidden_dias_credito').value = document.getElementById('prov_dias_credito').value;
+      document.getElementById('hidden_carrito_compra_json').value = JSON.stringify(carritoCompra);
+      document.getElementById('formFinalizarCompra').submit();
+    }
+
+    // VENTAS Y FACTURACIÓN
+    async function buscarRepuestosEnTiempoReal() {
+      const q = document.getElementById('inputBuscadorVenta').value.trim();
+      const contenedor = document.getElementById('resultadosBusqueda');
+      if (q.length < 1) { contenedor.classList.add('hidden'); contenedor.innerHTML = ''; return; }
+      try {
+        const response = await fetch('/buscar_repuestos_json?q=' + encodeURIComponent(q));
+        const repuestos = await response.json();
+        cacheVenta = repuestos;
+        if (repuestos.length > 0) {
+          let html = '';
+          repuestos.forEach((r, idx) => {
+            html += `<div onclick="seleccionarRepuestoParaVentaPorIdx(${idx})" class="p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 text-xs">
+              <span class="font-bold text-blue-900">[${r.codigo}]</span> ${r.descripcion} | <span class="text-emerald-700 font-bold">$${r.precio}</span> | Stock: ${r.stock} un.
+            </div>`;
+          });
+          contenedor.innerHTML = html;
+          contenedor.classList.remove('hidden');
+        } else {
+          contenedor.innerHTML = '<div class="p-3 text-xs text-slate-400 italic">No se encontraron repuestos.</div>';
+          contenedor.classList.remove('hidden');
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    function seleccionarRepuestoParaVentaPorIdx(idx) {
+      const r = cacheVenta[idx];
+      if(!r) return;
+      document.getElementById('selectedRepId').value = r.id;
+      document.getElementById('selectedRepCodigo').value = r.codigo;
+      document.getElementById('selectedRepDesc').value = r.descripcion;
+      document.getElementById('selectedRepCosto').value = r.costo;
+      document.getElementById('selectedRepStock').value = r.stock;
+      document.getElementById('inputBuscadorVenta').value = `[${r.codigo}] ${r.descripcion}`;
+      document.getElementById('precioVenta').value = r.precio;
+      document.getElementById('infoProductoSeleccionado').innerText = `Seleccionado: ${r.descripcion} | Stock disponible: ${r.stock} un.`;
+      document.getElementById('resultadosBusqueda').classList.add('hidden');
+    }
+
+    function agregarAlCarrito() {
+      const id = document.getElementById('selectedRepId').value;
+      const codigo = document.getElementById('selectedRepCodigo').value;
+      const descripcion = document.getElementById('selectedRepDesc').value;
+      const stock = parseFloat(document.getElementById('selectedRepStock').value || 0);
+      const cantidad = parseFloat(document.getElementById('cantidadVenta').value || 0);
+      const precio = parseFloat(document.getElementById('precioVenta').value || 0);
+      if (!id || !descripcion) { alert('Selecciona un repuesto.'); return; }
+      if (cantidad <= 0) { alert('La cantidad debe ser mayor a 0.'); return; }
+      if (cantidad > stock) { alert(`Stock insuficiente. Solo hay ${stock} disponibles.`); return; }
+      const subtotal = cantidad * precio;
+      const existente = carritoVenta.find(item => item.id === id);
+      if (existente) {
+        if (existente.cantidad + cantidad > stock) { alert('Supera el stock disponible.'); return; }
+        existente.cantidad += cantidad;
+        existente.subtotal = existente.cantidad * existente.precio;
+      } else { carritoVenta.push({ id, codigo, descripcion, cantidad, precio, subtotal, es_servicio: false }); }
+      renderizarCarritoVenta();
+      limpiarFormularioSeleccionVenta();
+    }
+
+    function limpiarFormularioSeleccionVenta() {
+      document.getElementById('inputBuscadorVenta').value = '';
+      document.getElementById('cantidadVenta').value = '1';
+      document.getElementById('precioVenta').value = '';
+      document.getElementById('selectedRepId').value = '';
+      document.getElementById('infoProductoSeleccionado').innerText = 'Ningún producto seleccionado.';
+    }
+
+    function eliminarDelCarritoVenta(index) { carritoVenta.splice(index, 1); renderizarCarritoVenta(); }
+
+    function renderizarCarritoVenta() {
+      const tbody = document.getElementById('tablaCarritoBody');
+      if (carritoVenta.length === 0) {
+        tbody.innerHTML = `<tr id="carritoVacioRow"><td colspan="7" class="text-center py-6 text-slate-400 italic">El carrito está vacío. Agrega repuestos o servicios arriba.</td></tr>`;
+        totalBrutoVenta = 0;
+        totalNetoVenta = 0;
+        calcularDistribucionCanales();
+        resetearCanalesPago();
+        return;
+      }
+      let html = '';
+      let totalGeneral = 0;
+      carritoVenta.forEach((item, index) => {
+        totalGeneral += item.subtotal;
+        const tipoBadge = item.es_servicio ? '<span class="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold text-[10px]">🔧 Servicio</span>' : '<span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold text-[10px]">📦 Repuesto</span>';
+        html += `<tr class="hover:bg-slate-50">
+          <td class="p-2.5">${tipoBadge}</td>
+          <td class="p-2.5 font-mono font-bold text-slate-700">${item.codigo}</td>
+          <td class="p-2.5 font-medium text-slate-900">${item.descripcion}</td>
+          <td class="p-2.5 text-center">${item.cantidad} un.</td>
+          <td class="p-2.5 text-slate-700">$ ${item.precio.toLocaleString()}</td>
+          <td class="p-2.5 font-bold text-emerald-700">$ ${item.subtotal.toLocaleString()}</td>
+          <td class="p-2.5 text-center">
+            <button type="button" onclick="eliminarDelCarritoVenta(${index})" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs font-bold cursor-pointer">🗑️</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+      totalBrutoVenta = totalGeneral;
+      calcularDistribucionCanales();
+      cambiarModalidadPago();
+    }
+
+    function enviarFactura() {
+      const doc = document.getElementById('cliente_doc').value.trim();
+      const nombre = document.getElementById('cliente_nombre').value.trim();
+      if (!doc || !nombre) { alert('Completa Cédula/NIT y Nombre del cliente.'); return; }
+      if (carritoVenta.length === 0) { alert('El carrito de ventas está vacío.'); return; }
+      const tipo = document.getElementById('tipo_pago').value;
+      const sumaCanales = obtenerSumaCanalesCop();
+
+      if(tipo === 'Contado') {
+        if(sumaCanales === 0) {
+          llenarCanalTodo('efectivo');
+        } else if(Math.abs(totalNetoVenta - sumaCanales) > 1.0) {
+          alert(`La suma de los canales de pago ($${sumaCanales.toLocaleString()} COP) debe cubrir el total neto a cobrar ($${totalNetoVenta.toLocaleString()} COP).`);
+          return;
+        }
+      } else if(tipo === 'Abono') {
+        if(sumaCanales <= 0) { alert('Ingresa el monto del abono.'); return; }
+        if(sumaCanales >= totalNetoVenta) { alert('El abono cubre todo el valor. Selecciona Contado.'); return; }
+      }
+
+      document.getElementById('hidden_cliente_doc').value = doc;
+      document.getElementById('hidden_cliente_nombre').value = nombre;
+      document.getElementById('hidden_cliente_telefono').value = document.getElementById('cliente_telefono').value;
+      document.getElementById('hidden_cliente_direccion').value = document.getElementById('cliente_direccion').value;
+      document.getElementById('hidden_es_agente_retencion').value = document.getElementById('es_agente_retencion').value;
+      document.getElementById('hidden_carrito_json').value = JSON.stringify(carritoVenta);
+      document.getElementById('formEmitirFactura').submit();
+    }
+
+    async function buscarCliente() {
+      const doc = document.getElementById('cliente_doc').value.trim();
+      if(!doc) return;
+      try {
+        const response = await fetch('/verificar_cliente', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'documento=' + encodeURIComponent(doc)
+        });
+        const data = await response.json();
+        if(data.encontrado) {
+          document.getElementById('cliente_nombre').value = data.nombre;
+          document.getElementById('cliente_telefono').value = data.telefono || '';
+          document.getElementById('cliente_direccion').value = data.direccion || '';
+          document.getElementById('contadorComprasText').innerText = `📊 Historial: ${data.compras}ª Compra registrada (Cliente Frecuente)`;
+        } else {
+          document.getElementById('contadorComprasText').innerText = `📊 Historial: 1ª Compra registrada (Nuevo Cliente)`;
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    // PRESUPUESTOS MULTIDIVISA
+    async function buscarRepuestosPresupuestoReal() {
+      const q = document.getElementById('inputBuscadorPresupuesto').value.trim();
+      const contenedor = document.getElementById('resultadosPresupuesto');
+      if (q.length < 1) { contenedor.classList.add('hidden'); contenedor.innerHTML = ''; return; }
+      try {
+        const response = await fetch('/buscar_repuestos_json?q=' + encodeURIComponent(q));
+        const repuestos = await response.json();
+        cachePresupuesto = repuestos;
+        if (repuestos.length > 0) {
+          let html = '';
+          repuestos.forEach((r, idx) => {
+            html += `<div onclick="seleccionarRepuestoParaPresupuestoPorIdx(${idx})" class="p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 text-xs">
+              <span class="font-bold text-blue-900">[${r.codigo}]</span> ${r.descripcion} | <span class="text-emerald-700 font-bold">$${r.precio}</span>
+            </div>`;
+          });
+          contenedor.innerHTML = html;
+          contenedor.classList.remove('hidden');
+        } else {
+          contenedor.innerHTML = '<div class="p-3 text-xs text-slate-400 italic">No se encontraron repuestos.</div>';
+          contenedor.classList.remove('hidden');
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    function seleccionarRepuestoParaPresupuestoPorIdx(idx) {
+      const r = cachePresupuesto[idx];
+      if(!r) return;
+      const existente = carritoPresupuesto.find(item => item.id === r.id);
+      if (existente) { existente.cantidad += 1; }
+      else { carritoPresupuesto.push({ id: r.id, codigo: r.codigo, descripcion: r.descripcion, cantidad: 1, precio: r.precio }); }
+      document.getElementById('inputBuscadorPresupuesto').value = '';
+      document.getElementById('resultadosPresupuesto').classList.add('hidden');
+      renderizarCarritoPresupuesto();
+    }
+
+    function actualizarItemPresupuesto(index, campo, valor) {
+      const val = parseFloat(valor);
+      if (isNaN(val) || val < 0) return;
+      carritoPresupuesto[index][campo] = val;
+      calcularTotalesPresupuesto();
+    }
+
+    function eliminarDelCarritoPresupuesto(index) { carritoPresupuesto.splice(index, 1); renderizarCarritoPresupuesto(); }
+
+    function renderizarCarritoPresupuesto() {
+      const tbody = document.getElementById('tablaPresupuestoCarritoBody');
+      if (carritoPresupuesto.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400 italic">No hay productos en la cotización.</td></tr>`;
+        calcularTotalesPresupuesto();
+        return;
+      }
+      let html = '';
+      carritoPresupuesto.forEach((item, index) => {
+        let subtotal = item.cantidad * item.precio;
+        html += `<tr class="hover:bg-slate-50">
+          <td class="p-2 font-mono font-bold text-blue-900">${item.codigo}</td>
+          <td class="p-2 font-medium text-slate-900">${item.descripcion}</td>
+          <td class="p-2 text-center">
+            <input type="number" step="any" min="1" value="${item.cantidad}" onchange="actualizarItemPresupuesto(${index}, 'cantidad', this.value)" class="w-14 border border-slate-300 rounded p-1 text-center font-bold">
+          </td>
+          <td class="p-2">
+            <input type="number" step="any" min="0" value="${item.precio}" onchange="actualizarItemPresupuesto(${index}, 'precio', this.value)" class="w-24 border border-slate-300 rounded p-1 text-right font-bold text-emerald-700">
+          </td>
+          <td class="p-2 font-bold text-emerald-700 font-mono">$ ${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td class="p-2 text-center">
+            <button type="button" onclick="eliminarDelCarritoPresupuesto(${index})" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs font-bold cursor-pointer">🗑️</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+      calcularTotalesPresupuesto();
+    }
+
+    function calcularTotalesPresupuesto() {
+      let subtotalCop = 0;
+      carritoPresupuesto.forEach(item => { subtotalCop += (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio) || 0); });
+      let ivaCop = subtotalCop * 0.19;
+      let totalCop = subtotalCop + ivaCop;
+      let tasaPesoBs = parseFloat(document.getElementById('tasa_peso_bs').value) || 1.0;
+      if (tasaPesoBs <= 0) tasaPesoBs = 1.0;
+      let tasaDolarBs = parseFloat(document.getElementById('tasa_dolar_bs').value) || 1.0;
+      if (tasaDolarBs <= 0) tasaDolarBs = 1.0;
+      let totalBs = totalCop / tasaPesoBs;
+      let totalUsd = totalCop / tasaDolarBs;
+      document.getElementById('presupuestoSubtotalText').innerText = `$ ${subtotalCop.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('presupuestoIvaText').innerText = `$ ${ivaCop.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('presupuestoTotalCopText').innerText = `$ ${totalCop.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('presupuestoTotalBsText').innerText = `Bs. ${totalBs.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('presupuestoTotalUsdText').innerText = `$ ${totalUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    function enviarPresupuestoPdf() {
+      if (carritoPresupuesto.length === 0) { alert('El presupuesto está vacío.'); return; }
+      document.getElementById('presupuesto_carrito_json').value = JSON.stringify(carritoPresupuesto);
+      document.getElementById('formPresupuestoMultidivisa').submit();
+    }
+
+    // MODALES AUXILIARES CON ÍNDICE SEGURO
+    function abrirModalDetalleMejoresPorIdx(idx) {
+      const prod = MEJORES_PROD_DB[idx];
+      if(!prod) return;
+      document.getElementById('modalMejoresTitulo').innerText = `Producto: ${prod.descripcion}`;
+      document.getElementById('modalMejoresSubt').innerText = `Código: ${prod.codigo_interno} | Total Vendido: ${prod.total_vendido} un.`;
+      const tbody = document.getElementById('tablaDetalleMejoresBody');
+      if (!prod.clientes_compradores || prod.clientes_compradores.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-slate-400 italic">No hay compradores registrados.</td></tr>`;
+      } else {
+        let html = '';
+        prod.clientes_compradores.forEach(c => {
+          html += `<tr class="hover:bg-slate-50">
+            <td class="p-2 font-mono font-bold text-blue-900">${c.documento}</td>
+            <td class="p-2 font-medium text-slate-900">${c.nombre}</td>
+            <td class="p-2 text-center font-bold text-emerald-700">${c.cantidad} un.</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+      document.getElementById('modalDetalleMejores').classList.remove('hidden');
+    }
+    function cerrarModalDetalleMejores() { document.getElementById('modalDetalleMejores').classList.add('hidden'); }
+
+    function abrirModalAbono(facturaId, saldoRestante, nombreCliente) {
+      document.getElementById('tituloModalAbono').innerText = `Registrar Abono - Factura #${facturaId}`;
+      document.getElementById('subtituloModalAbono').innerText = `Cliente: ${nombreCliente} | Pendiente: $ ${parseFloat(saldoRestante).toLocaleString()} COP`;
+      document.getElementById('inputMontoAbono').value = saldoRestante;
+      document.getElementById('formRegistrarAbono').action = '/registrar_abono/' + facturaId;
+      document.getElementById('modalAbono').classList.remove('hidden');
+    }
+    function cerrarModalAbono() { document.getElementById('modalAbono').classList.add('hidden'); }
+
+    function abrirModalAbonoCxP(cxpId, saldoRestante, nroFactura) {
+      document.getElementById('tituloModalCxP').innerText = `Abono a Proveedor - Factura #${nroFactura}`;
+      document.getElementById('subtModalCxP').innerText = `Pendiente: $ ${parseFloat(saldoRestante).toLocaleString()}`;
+      document.getElementById('inputMontoAbonoCxP').value = saldoRestante;
+      document.getElementById('formRegistrarAbonoCxP').action = '/registrar_abono_cxp/' + cxpId;
+      document.getElementById('modalAbonoCxP').classList.remove('hidden');
+    }
+    function cerrarModalAbonoCxP() { document.getElementById('modalAbonoCxP').classList.add('hidden'); }
+
+    function abrirModalDetalleClientePorIdx(idx) {
+      const cli = CLIENTES_DB[idx];
+      if(!cli) return;
+      document.getElementById('modalClienteNombre').innerText = `Cliente: ${cli.nombre}`;
+      document.getElementById('modalClienteInfo').innerText = `Documento: ${cli.documento} | Teléfono: ${cli.telefono || 'N/A'}`;
+      const tbody = document.getElementById('tablaDetalleClienteBody');
+      if (!cli.compras_detalle || cli.compras_detalle.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 italic">No hay compras registradas.</td></tr>`;
+      } else {
+        let html = '';
+        cli.compras_detalle.forEach(d => {
+          html += `<tr class="hover:bg-slate-50">
+            <td class="p-2 font-mono font-bold text-blue-900"># 000${d.factura_id}</td>
+            <td class="p-2 text-slate-600">${d.fecha}</td>
+            <td class="p-2 font-medium text-slate-900">${d.repuesto}</td>
+            <td class="p-2 text-center font-bold">${d.cantidad} un.</td>
+            <td class="p-2 text-right font-bold text-emerald-700">$ ${d.subtotal.toLocaleString()}</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+      document.getElementById('modalDetalleCliente').classList.remove('hidden');
+    }
+    function cerrarModalDetalleCliente() { document.getElementById('modalDetalleCliente').classList.add('hidden'); }
+
+    function abrirModalPrecio(id, btnElement, precioActual) {
+      const row = btnElement.closest('tr');
+      const descripcion = row.querySelector('.desc-text').innerText;
+      document.getElementById('priceModalDesc').innerText = descripcion;
+      document.getElementById('inputNuevoPrecio').value = precioActual;
+      document.getElementById('formEditarPrecio').action = '/actualizar_precio/' + id;
+      document.getElementById('priceModal').classList.remove('hidden');
+    }
+    function cerrarModalPrecio() { document.getElementById('priceModal').classList.add('hidden'); }
+  </script>
+
+  <!-- AUTO-DESCARGAS DE FACTURA O CIERRE DE CAJA EN PDF -->
+  {% if request.args.get('factura_emitida') %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      window.open("{{ url_for('descargar_pdf_factura', factura_id=request.args.get('factura_emitida')) }}", "_blank");
+    });
+  </script>
+  {% endif %}
+
+  {% if request.args.get('cierre_descargar') %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      window.open("{{ url_for('descargar_pdf_cierre', cierre_id=request.args.get('cierre_descargar')) }}", "_blank");
+    });
+  </script>
+  {% endif %}
+</body>
+</html>
