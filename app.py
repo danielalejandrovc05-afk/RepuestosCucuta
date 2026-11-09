@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Flask, render_template, render_template_string, request, redirect, url_for, flash, send_file, jsonify, session
 from werkzeug.utils import secure_filename
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -15,7 +15,7 @@ from reportlab.lib import colors
 import json
 
 app = Flask(__name__)
-app.secret_key = 'repuestos_cucuta_secret_2026'
+app.secret_key = 'repuestos_cucuta_secret_2026_segura'
 DB_PATH = 'repuestos_cucuta.db'
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -26,7 +26,19 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # CONFIGURACIÓN GENERAL DEL NEGOCIO
+    # 1. TABLA DE USUARIOS PARA LOGIN
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario TEXT UNIQUE,
+            password TEXT,
+            nombre TEXT
+        )
+    ''')
+    cursor.execute("INSERT OR IGNORE INTO usuarios (usuario, password, nombre) VALUES (?, ?, ?)", 
+                   ('DayAna2026', 'DiegoyGabriel', 'Dayana Rujano'))
+
+    # 2. CONFIGURACIÓN GENERAL DEL NEGOCIO Y SALDOS INICIALES
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS configuracion (
             clave TEXT PRIMARY KEY,
@@ -44,7 +56,14 @@ def init_db():
         'encargada_nombre': 'Dayana Rujano',
         'valor_uvt': '52374',
         'presupuesto_fijos': '2500000',
-        'presupuesto_variables': '1200000'
+        'presupuesto_variables': '1200000',
+        'saldo_ini_efectivo': '0',
+        'saldo_ini_nequi': '0',
+        'saldo_ini_bancolombia': '0',
+        'saldo_ini_daviplata': '0',
+        'saldo_ini_transferencia': '0',
+        'saldo_ini_dolar_efectivo': '0',
+        'saldo_ini_zelle': '0'
     }
     for k, v in config_defaults.items():
         cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES (?, ?)", (k, v))
@@ -311,8 +330,94 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 init_db()
+
+
+# PROTECCIÓN GLOBAL DE ACCESO: EXIGE INICIAR SESIÓN
+@app.before_request
+def verificar_autenticacion():
+    rutas_permitidas = ['login', 'static']
+    if request.endpoint and request.endpoint not in rutas_permitidas:
+        if 'usuario' not in session:
+            return redirect(url_for('login'))
+
+
+# RUTA DE LOGIN
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user_input = request.form.get('usuario', '').strip()
+        pass_input = request.form.get('password', '').strip()
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT usuario, nombre FROM usuarios WHERE usuario = ? AND password = ?", (user_input, pass_input))
+        usr = cursor.fetchone()
+        conn.close()
+        
+        if usr:
+            session['usuario'] = usr[0]
+            session['nombre_usuario'] = usr[1]
+            flash(f'¡Bienvenido(a), {usr[1]}!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Usuario o contraseña incorrectos. Intenta nuevamente.', 'error')
+            return redirect(url_for('login'))
+
+    html_login = '''
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Iniciar Sesión - AUTOREPUESTOS MERP</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-slate-200">
+        <div class="text-center mb-6">
+          <div class="inline-flex p-3 bg-blue-100 rounded-2xl mb-3 text-3xl">🚗🏍️</div>
+          <h1 class="text-2xl font-black text-blue-950">AUTOREPUESTOS MERP</h1>
+          <p class="text-xs text-slate-500 mt-1">Acceso seguro al sistema de inventario y caja</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for cat, msg in messages %}
+              <div class="mb-4 p-3 rounded-xl text-xs font-bold {% if cat == 'error' %}bg-red-100 text-red-700 border border-red-200{% else %}bg-emerald-100 text-emerald-800 border border-emerald-200{% endif %}">
+                {{ msg }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('login') }}" method="POST" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Usuario</label>
+            <input type="text" name="usuario" placeholder="Ej: admin" required class="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+            <input type="password" name="password" placeholder="••••••••" required class="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          </div>
+          <button type="submit" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl text-sm shadow-lg transition-all cursor-pointer">
+            🔒 Iniciar Sesión
+          </button>
+        </form>
+        <p class="text-center text-[11px] text-slate-400 mt-6">Villa del Rosario - Cúcuta | Sistema Protegido</p>
+      </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_login)
+
+
+# CERRAR SESIÓN
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Has cerrado sesión correctamente.', 'success')
+    return redirect(url_for('login'))
 
 
 def get_config():
@@ -599,7 +704,7 @@ def index():
         if d[1] == 'Compra': devoluciones_compras_data.append(dev_obj)
         else: devoluciones_ventas_data.append(dev_obj)
 
-    # Pestaña 11: Arqueo de Caja + Separación de Servicios vs Repuestos + Presupuestos
+    # Pestaña 11: Arqueo de Caja (Turno activo)
     cursor.execute("SELECT id, fecha, tipo, referencia, cliente_o_concepto, metodo_pago, monto, COALESCE(monto_usd, 0), COALESCE(tasa_cambio, 0), COALESCE(origen_ingreso, 'Repuestos'), COALESCE(tipo_gasto, 'Variable') FROM caja_movimientos WHERE cerrado = 'No' ORDER BY id DESC")
     movimientos_caja_rows = cursor.fetchall()
     
@@ -628,7 +733,7 @@ def index():
             'concepto': m_con, 'metodo': m_met, 'monto': val_cop, 'monto_usd': val_usd, 'tasa': float(m_tasa or 0)
         })
         
-        if m_tipo == 'Egreso Gasto':
+        if 'Egreso' in m_tipo:
             if m_tgasto == 'Fijo': gastos_fijos_ejecutados += val_cop
             else: gastos_variables_ejecutados += val_cop
             
@@ -652,7 +757,7 @@ def index():
             elif m_met == 'Bancolombia': caja_bancolombia += val_cop
             elif m_met == 'Daviplata': caja_daviplata += val_cop
             elif m_met == 'Transferencia': caja_transferencia += val_cop
-            elif m_met == 'Zelle ($)':
+            elif m_met == 'Zelle ($)': 
                 caja_zelle_cop += val_cop
                 caja_zelle_usd += val_usd
             elif m_met == 'Efectivo Dólar ($)':
@@ -661,7 +766,63 @@ def index():
 
     caja_efectivo_neto = max(0.0, caja_efectivo_ing - caja_efectivo_egr)
     caja_gran_total = caja_efectivo_neto + caja_nequi + caja_bancolombia + caja_daviplata + caja_transferencia + caja_zelle_cop + caja_dolar_efectivo_cop
+
+    # ========================================================
+    # NUEVO: CÁLCULO DE TESORERÍA HISTÓRICA / TOTAL DISPONIBLE ("BAJO EL COLCHÓN")
+    # ========================================================
+    saldo_ini_efectivo = float(config.get('saldo_ini_efectivo', 0))
+    saldo_ini_nequi = float(config.get('saldo_ini_nequi', 0))
+    saldo_ini_bancolombia = float(config.get('saldo_ini_bancolombia', 0))
+    saldo_ini_daviplata = float(config.get('saldo_ini_daviplata', 0))
+    saldo_ini_transferencia = float(config.get('saldo_ini_transferencia', 0))
+    saldo_ini_dolar_efectivo_usd = float(config.get('saldo_ini_dolar_efectivo', 0))
+    saldo_ini_zelle_usd = float(config.get('saldo_ini_zelle', 0))
+
+    cursor.execute("SELECT tipo, metodo_pago, monto, COALESCE(monto_usd, 0), COALESCE(tasa_cambio, 0) FROM caja_movimientos")
+    todos_los_movimientos = cursor.fetchall()
     
+    disp_efectivo = saldo_ini_efectivo
+    disp_nequi = saldo_ini_nequi
+    disp_bancolombia = saldo_ini_bancolombia
+    disp_daviplata = saldo_ini_daviplata
+    disp_transferencia = saldo_ini_transferencia
+    disp_dolar_efectivo_usd = saldo_ini_dolar_efectivo_usd
+    disp_dolar_efectivo_cop = 0.0
+    disp_zelle_usd = saldo_ini_zelle_usd
+    disp_zelle_cop = 0.0
+    
+    tasa_actual = 3250.0  # Tasa base por defecto
+
+    for mov_t, mov_m, mov_val, mov_usd, mov_tc in todos_los_movimientos:
+        val_cop = float(mov_val or 0.0)
+        val_usd = float(mov_usd or 0.0)
+        if mov_tc > 0:
+            tasa_actual = float(mov_tc)
+
+        signo = -1.0 if 'Egreso' in mov_t else 1.0
+
+        if mov_m == 'Efectivo':
+            disp_efectivo += (signo * val_cop)
+        elif mov_m == 'Nequi':
+            disp_nequi += (signo * val_cop)
+        elif mov_m == 'Bancolombia':
+            disp_bancolombia += (signo * val_cop)
+        elif mov_m == 'Daviplata':
+            disp_daviplata += (signo * val_cop)
+        elif mov_m == 'Transferencia':
+            disp_transferencia += (signo * val_cop)
+        elif mov_m == 'Efectivo Dólar ($)':
+            disp_dolar_efectivo_usd += (signo * val_usd)
+        elif mov_m == 'Zelle ($)':
+            disp_zelle_usd += (signo * val_usd)
+
+    disp_dolar_efectivo_cop = disp_dolar_efectivo_usd * tasa_actual
+    disp_zelle_cop = disp_zelle_usd * tasa_actual
+    
+    gran_total_disponible_cop = (disp_efectivo + disp_nequi + disp_bancolombia + 
+                                 disp_daviplata + disp_transferencia + 
+                                 disp_dolar_efectivo_cop + disp_zelle_cop)
+
     # Presupuesto de gastos
     presup_fijos_total = float(config.get('presupuesto_fijos', 2500000))
     presup_vars_total = float(config.get('presupuesto_variables', 1200000))
@@ -756,7 +917,44 @@ def index():
                            iva_dian_balance=iva_dian_balance,
                            retefuente_compras_por_pagar=retefuente_compras_por_pagar,
                            retefuente_ventas_a_favor=retefuente_ventas_a_favor,
-                           tope_uvt_pesos=tope_uvt_pesos)
+                           tope_uvt_pesos=tope_uvt_pesos,
+                           disp_efectivo=disp_efectivo,
+                           disp_nequi=disp_nequi,
+                           disp_bancolombia=disp_bancolombia,
+                           disp_daviplata=disp_daviplata,
+                           disp_transferencia=disp_transferencia,
+                           disp_dolar_efectivo_usd=disp_dolar_efectivo_usd,
+                           disp_dolar_efectivo_cop=disp_dolar_efectivo_cop,
+                           disp_zelle_usd=disp_zelle_usd,
+                           disp_zelle_cop=disp_zelle_cop,
+                           gran_total_disponible_cop=gran_total_disponible_cop)
+
+
+# NUEVO: ACTUALIZAR INVERSIÓN / SALDOS INICIALES DE TESORERÍA
+@app.route('/actualizar_saldos_iniciales', methods=['POST'])
+def actualizar_saldos_iniciales():
+    s_efectivo = request.form.get('saldo_ini_efectivo', '0').strip()
+    s_nequi = request.form.get('saldo_ini_nequi', '0').strip()
+    s_bancolombia = request.form.get('saldo_ini_bancolombia', '0').strip()
+    s_daviplata = request.form.get('saldo_ini_daviplata', '0').strip()
+    s_transferencia = request.form.get('saldo_ini_transferencia', '0').strip()
+    s_dolar = request.form.get('saldo_ini_dolar_efectivo', '0').strip()
+    s_zelle = request.form.get('saldo_ini_zelle', '0').strip()
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_efectivo', ?)", (s_efectivo,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_nequi', ?)", (s_nequi,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_bancolombia', ?)", (s_bancolombia,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_daviplata', ?)", (s_daviplata,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_transferencia', ?)", (s_transferencia,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_dolar_efectivo', ?)", (s_dolar,))
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('saldo_ini_zelle', ?)", (s_zelle,))
+    conn.commit()
+    conn.close()
+    
+    flash('¡Saldos e Inversión Inicial actualizados con éxito en Tesorería!', 'success')
+    return redirect(url_for('index'))
 
 
 # ACTUALIZAR VALOR UVT Y PRESUPUESTOS DE GASTOS
@@ -959,7 +1157,7 @@ def cerrar_arqueo_caja():
     for tipo, met, m, m_usd, m_orig in movs:
         val_cop = float(m or 0.0)
         val_usd = float(m_usd or 0.0)
-        if tipo == 'Egreso Gasto':
+        if 'Egreso' in tipo:
             tot_egresos += val_cop
             if met == 'Efectivo': tot_efectivo_ing -= val_cop
             elif met == 'Nequi': tot_nequi -= val_cop
@@ -981,7 +1179,7 @@ def cerrar_arqueo_caja():
             elif met == 'Bancolombia': tot_bancolombia += val_cop
             elif met == 'Daviplata': tot_daviplata += val_cop
             elif met == 'Transferencia': tot_transferencia += val_cop
-            elif met == 'Zelle ($)':
+            elif met == 'Zelle ($)': 
                 tot_zelle_cop += val_cop
                 tot_zelle_usd += val_usd
             elif met == 'Efectivo Dólar ($)':
@@ -1002,7 +1200,7 @@ def cerrar_arqueo_caja():
     conn.commit()
     conn.close()
     
-    flash(f'¡Arqueo #{cierre_id} finalizado con éxito! Caja reiniciada a $ 0.00.', 'success')
+    flash(f'¡Arqueo #{cierre_id} finalizado con éxito! Caja de turno reiniciada a $ 0.00.', 'success')
     return redirect(url_for('index', cierre_descargar=cierre_id, tab='pestaña11'))
 
 
@@ -1145,11 +1343,9 @@ def emitir_factura():
     base_imponible = total_bruto / 1.19
     monto_iva_venta = total_bruto - base_imponible
     
-    # ReteFuente 2.5% si el cliente es Empresa / Agente de Retención y supera 10 UVT
     monto_retefuente_retenida = (base_imponible * 0.025) if (es_agente == 'Si' and base_imponible >= tope_uvt) else 0.0
     total_a_cobrar = total_bruto - monto_retefuente_retenida
     
-    # Detectar si incluye servicios
     tiene_servicios = any(bool(item.get('es_servicio')) for item in carrito)
     tiene_repuestos = any(not bool(item.get('es_servicio')) for item in carrito)
     tipo_venta = 'Mixto' if (tiene_servicios and tiene_repuestos) else ('Servicios' if tiene_servicios else 'Repuestos')
@@ -1203,7 +1399,6 @@ def emitir_factura():
         subtotal = float(item.get('subtotal', 0))
         es_serv = 1 if item.get('es_servicio') else 0
         
-        # Descontar de stock solo si NO es servicio
         if not es_serv and rep_id:
             cursor.execute("SELECT codigo_interno, descripcion, stock FROM inventario WHERE id = ?", (rep_id,))
             rep = cursor.fetchone()
@@ -1251,7 +1446,7 @@ def emitir_factura():
     return redirect(url_for('index', factura_emitida=factura_id, tab='pestaña3'))
 
 
-# GENERAR FACTURA EN FORMATO FORMAL ELECTRÓNICO (MODELO EXACTO DE LA FOTO)
+# GENERAR FACTURA EN FORMATO FORMAL ELECTRÓNICO
 @app.route('/descargar_pdf_factura/<int:factura_id>')
 def descargar_pdf_factura(factura_id):
     config = get_config()
@@ -1273,12 +1468,10 @@ def descargar_pdf_factura(factura_id):
     elements = []
     styles = getSampleStyleSheet()
     
-    title_bold = ParagraphStyle('TBold', parent=styles['Normal'], fontSize=11, leading=13, fontName='Helvetica-Bold')
     normal_sm = ParagraphStyle('NSm', parent=styles['Normal'], fontSize=8, leading=10)
     normal_sm_bold = ParagraphStyle('NSmBold', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold')
     center_sm = ParagraphStyle('CSm', parent=styles['Normal'], fontSize=7.5, leading=9.5, alignment=1)
     
-    # 1. ENCABEZADO ESTILO FACTURA ELECTRÓNICA
     header_table_data = [
         [
             Paragraph(f"<b>{config.get('nombre_negocio')}</b><br/>NIT: {config.get('nit_negocio')}<br/>{config.get('regimen_negocio')}<br/>{config.get('direccion_negocio')}<br/>TEL: {config.get('telefono_negocio')}<br/>{config.get('ciudad_negocio')}", normal_sm),
@@ -1291,7 +1484,6 @@ def descargar_pdf_factura(factura_id):
     elements.append(Spacer(1, 8))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#1E3A8A'), spaceAfter=8))
     
-    # 2. DATOS DEL CLIENTE
     client_data = [
         [
             Paragraph(f"<b>NIT / CC:</b> {fac[0]}<br/><b>Razón Social:</b> {fac[1]}<br/><b>Vendedora:</b> {config.get('encargada_nombre')}", normal_sm),
@@ -1303,7 +1495,6 @@ def descargar_pdf_factura(factura_id):
     elements.append(t_cli)
     elements.append(Spacer(1, 10))
     
-    # 3. TABLA DE ÍTEMS Y PRODUCTOS
     table_items = [["ITEM", "Código", "Cant.", "UND", "Descripción", "Vr. Unit (COP)", "Vr. Parcial"]]
     item_num = 1
     for d in detalles:
@@ -1333,7 +1524,6 @@ def descargar_pdf_factura(factura_id):
     elements.append(t_prod)
     elements.append(Spacer(1, 10))
     
-    # 4. TOTALES DESGLOSADOS Y MEDIOS DE PAGO
     base_imp = float(fac[12] or (float(fac[5]) / 1.19))
     m_iva = float(fac[9] or 0)
     m_rete = float(fac[11] or 0)
@@ -1363,7 +1553,6 @@ def descargar_pdf_factura(factura_id):
     elements.append(t_tot)
     elements.append(Spacer(1, 10))
     
-    # Monto en letras y resolución DIAN
     elements.append(Paragraph(f"<b>SON:</b> {numero_a_letras_cop(total_neto)}", normal_sm_bold))
     elements.append(Spacer(1, 6))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.gray, spaceAfter=6))
@@ -1374,7 +1563,7 @@ def descargar_pdf_factura(factura_id):
     return send_file(buffer, as_attachment=True, download_name=f"Factura_{factura_id}.pdf", mimetype='application/pdf')
 
 
-# REGISTRAR ABONO
+# REGISTRAR ABONO CLIENTE
 @app.route('/registrar_abono/<int:factura_id>', methods=['POST'])
 def registrar_abono(factura_id):
     try: nuevo_abono = float(request.form.get('monto_abono', 0))
@@ -1402,7 +1591,7 @@ def registrar_abono(factura_id):
         ''', (fecha_dt.strftime('%d/%m/%Y %H:%M'), fecha_dt.strftime('%d/%m/%Y'), f"Abono Factura #{factura_id}", cliente_nom, metodo, nuevo_abono))
         
         conn.commit()
-        flash(f'¡Abono de $ {nuevo_abono:,.2f} registrado por {metodo} e ingresado al Arqueo de Caja!', 'success')
+        flash(f'¡Abono de $ {nuevo_abono:,.2f} registrado por {metodo} e ingresado a Tesorería y Caja!', 'success')
     conn.close()
     return redirect(url_for('index', tab='pestaña4'))
 
@@ -1593,7 +1782,7 @@ def descargar_corte_gerencial_excel():
     return send_file(output, as_attachment=True, download_name=f"Balance_AutoRepuestosMERP_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
-# BÚSQUEDA DETALLE COMPLETO DE FACTURA PROVEEDOR PARA RECLAMOS
+# BÚSQUEDA DETALLE FACTURA PROVEEDOR
 @app.route('/detalle_factura_proveedor/<path:nro>')
 def detalle_factura_proveedor(nro):
     conn = sqlite3.connect(DB_PATH)
@@ -1838,17 +2027,30 @@ def actualizar_precio(id):
     return redirect(url_for('index', tab='pestaña2'))
 
 
-@app.route('/marcar_pagado_cxp/<int:cxp_id>')
+# PAGO A PROVEEDOR (CXP): DESCUENTA DE CAJA / TESORERÍA AUTOMÁTICAMENTE
+@app.route('/marcar_pagado_cxp/<int:cxp_id>', methods=['GET', 'POST'])
 def marcar_pagado_cxp(cxp_id):
+    metodo = request.form.get('metodo_pago_cxp', 'Bancolombia') if request.method == 'POST' else 'Bancolombia'
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT total_factura FROM cuentas_por_pagar WHERE id = ?", (cxp_id,))
+    cursor.execute("SELECT total_factura, monto_restante, proveedor, nro_factura FROM cuentas_por_pagar WHERE id = ?", (cxp_id,))
     cxp = cursor.fetchone()
     if cxp:
         total = float(cxp[0] or 0.0)
+        restante = float(cxp[1] or 0.0)
+        prov = cxp[2] or 'Proveedor'
+        nro_fac = cxp[3] or 'S/N'
         cursor.execute("UPDATE cuentas_por_pagar SET monto_abonado = ?, monto_restante = 0.0, estado_pago = 'Pagado' WHERE id = ?", (total, cxp_id))
+        
+        if restante > 0:
+            fecha_dt = datetime.now()
+            cursor.execute('''
+                INSERT INTO caja_movimientos (fecha, fecha_dia, tipo, referencia, cliente_o_concepto, metodo_pago, monto, cerrado)
+                VALUES (?, ?, 'Egreso Pago Proveedor', ?, ?, ?, ?, 'No')
+            ''', (fecha_dt.strftime('%d/%m/%Y %H:%M'), fecha_dt.strftime('%d/%m/%Y'), f"Pago Factura #{nro_fac}", prov, metodo, restante))
+            
         conn.commit()
-        flash('¡Cuenta por Pagar marcada como Pagada!', 'success')
+        flash(f'¡Cuenta por Pagar saldada por {metodo} y descontada de Tesorería!', 'success')
     conn.close()
     return redirect(url_for('index', tab='pestaña5'))
 
@@ -1857,20 +2059,32 @@ def marcar_pagado_cxp(cxp_id):
 def registrar_abono_cxp(cxp_id):
     try: nuevo_abono = float(request.form.get('monto_abono', 0))
     except: nuevo_abono = 0.0
+    metodo = request.form.get('metodo_pago_cxp', 'Bancolombia').strip()
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT total_factura, monto_abonado, monto_restante FROM cuentas_por_pagar WHERE id = ?", (cxp_id,))
+    cursor.execute("SELECT total_factura, monto_abonado, monto_restante, proveedor, nro_factura FROM cuentas_por_pagar WHERE id = ?", (cxp_id,))
     cxp = cursor.fetchone()
     if cxp:
         total = float(cxp[0] or 0.0)
         abonado_actual = float(cxp[1] or 0.0)
+        prov = cxp[3] or 'Proveedor'
+        nro_fac = cxp[4] or 'S/N'
         total_abonado_nuevo = abonado_actual + nuevo_abono
         total_restante_nuevo = max(0.0, total - total_abonado_nuevo)
         estado = 'Pagado' if total_restante_nuevo == 0 else 'Pendiente'
         cursor.execute('UPDATE cuentas_por_pagar SET monto_abonado = ?, monto_restante = ?, estado_pago = ? WHERE id = ?', 
                        (total_abonado_nuevo, total_restante_nuevo, estado, cxp_id))
+        
+        if nuevo_abono > 0:
+            fecha_dt = datetime.now()
+            cursor.execute('''
+                INSERT INTO caja_movimientos (fecha, fecha_dia, tipo, referencia, cliente_o_concepto, metodo_pago, monto, cerrado)
+                VALUES (?, ?, 'Egreso Abono Proveedor', ?, ?, ?, ?, 'No')
+            ''', (fecha_dt.strftime('%d/%m/%Y %H:%M'), fecha_dt.strftime('%d/%m/%Y'), f"Abono Factura Prov #{nro_fac}", prov, metodo, nuevo_abono))
+            
         conn.commit()
-        flash('¡Abono registrado en la Cuenta por Pagar!', 'success')
+        flash(f'¡Abono de $ {nuevo_abono:,.2f} registrado por {metodo} y descontado de Tesorería!', 'success')
     conn.close()
     return redirect(url_for('index', tab='pestaña5'))
 
@@ -1933,7 +2147,7 @@ def buscar_repuestos_inventario_json():
     return jsonify(results)
 
 
-# ENTRADA DE FACTURA PROVEEDOR (CON CÁLCULO DE RETEFUENTE 2.5% SI DECLARA RENTA)
+# ENTRADA DE FACTURA PROVEEDOR
 @app.route('/registrar_factura_proveedor', methods=['POST'])
 def registrar_factura_proveedor():
     config = get_config()
@@ -1958,10 +2172,7 @@ def registrar_factura_proveedor():
     subtotal_factura = sum(float(item['costo']) * float(item['cantidad']) for item in carrito)
     monto_iva = subtotal_factura * 0.19 if aplica_iva == 'Si' else 0.0
     
-    # ReteFuente 2.5% sobre la BASE imponible si supera 10 UVT ($523.740) y declara renta
     monto_retefuente = (subtotal_factura * 0.025) if (declara_renta == 'Si' and subtotal_factura >= tope_uvt) else 0.0
-    
-    # El valor neto a pagarle al proveedor se reduce por la ReteFuente
     total_con_iva_neto = (subtotal_factura + monto_iva) - monto_retefuente
     
     fecha_dt = datetime.now()
@@ -2174,5 +2385,5 @@ def descargar_pdf_retencion(ret_id):
 
 
 if __name__ == '__main__':
-    print("Iniciando sistema AutoRepuestos MERP para Dayana Rujano...")
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

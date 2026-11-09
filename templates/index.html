@@ -26,10 +26,85 @@
           <a href="{{ url_for('descargar_corte_gerencial_excel') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition-all flex items-center gap-1.5 text-xs cursor-pointer" title="Descargar balance con gráficos">
             <span>📑</span> Finalizar Corte (Excel)
           </a>
+          <!-- BOTÓN CERRAR SESIÓN -->
+          <a href="{{ url_for('logout') }}" onclick="return confirm('¿Deseas cerrar sesión?')" class="bg-rose-700 hover:bg-rose-800 text-white font-bold px-3.5 py-1.5 rounded-xl shadow transition-all flex items-center gap-1.5 text-xs cursor-pointer" title="Salir del sistema">
+            <span>🔒</span> Salir
+          </a>
         </div>
       </div>
     </div>
   </header>
+
+  <!-- ============================================================== -->
+  <!-- PANEL DE TESORERÍA REAL DISPONIBLE ("BAJO EL COLCHÓN")        -->
+  <!-- ============================================================== -->
+  <div class="max-w-7xl mx-auto px-4 mt-3">
+    <div class="bg-white rounded-2xl shadow-md p-4 border border-slate-200">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">💰🏦</span>
+          <div>
+            <h3 class="text-sm font-extrabold text-blue-950 uppercase tracking-wide">Tesorería Real Disponible (En Caja y Cuentas)</h3>
+            <p class="text-[11px] text-slate-500">Saldo inicial + Ingresos acumulados (Ventas/Abonos) - Salidas acumuladas (Gastos/Proveedores).</p>
+          </div>
+        </div>
+        <button type="button" onclick="abrirModalSaldosIniciales()" class="bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm">
+          <span>⚙️</span> Inversión / Saldo Inicial
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2.5">
+        <!-- 1. Efectivo -->
+        <div class="bg-emerald-50/70 border border-emerald-300 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-emerald-800 uppercase block">💵 Efectivo Físico</span>
+          <h4 class="text-xs sm:text-sm font-black text-emerald-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_efectivo | float) }}</h4>
+          <span class="text-[8px] text-emerald-700 block">COP Gaveta / Caja</span>
+        </div>
+        <!-- 2. Nequi -->
+        <div class="bg-purple-50/70 border border-purple-200 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-purple-800 uppercase block">🟣 Nequi</span>
+          <h4 class="text-xs sm:text-sm font-black text-purple-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_nequi | float) }}</h4>
+          <span class="text-[8px] text-purple-700 block">COP Digital</span>
+        </div>
+        <!-- 3. Bancolombia -->
+        <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-amber-800 uppercase block">🟡 Bancolombia</span>
+          <h4 class="text-xs sm:text-sm font-black text-amber-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_bancolombia | float) }}</h4>
+          <span class="text-[8px] text-amber-700 block">Cuenta Bancaria</span>
+        </div>
+        <!-- 4. Daviplata -->
+        <div class="bg-red-50/70 border border-red-200 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-red-800 uppercase block">🔴 DaviPlata</span>
+          <h4 class="text-xs sm:text-sm font-black text-red-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_daviplata | float) }}</h4>
+          <span class="text-[8px] text-red-700 block">Billetera</span>
+        </div>
+        <!-- 5. Otros Bancos -->
+        <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-blue-800 uppercase block">🏛️ Otros Bancos</span>
+          <h4 class="text-xs sm:text-sm font-black text-blue-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_transferencia | float) }}</h4>
+          <span class="text-[8px] text-blue-700 block">Transferencias</span>
+        </div>
+        <!-- 6. Dólar Físico -->
+        <div class="bg-teal-50/70 border border-teal-300 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-teal-800 uppercase block">💵 Dólar Físico ($)</span>
+          <h4 class="text-xs sm:text-sm font-black text-teal-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_dolar_efectivo_usd | float) }} USD</h4>
+          <span class="text-[8px] text-teal-700 block font-semibold">≈ ${{ "{:,.0f}".format(disp_dolar_efectivo_cop | float) }} COP</span>
+        </div>
+        <!-- 7. Zelle -->
+        <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-2.5">
+          <span class="text-[9px] font-bold text-indigo-800 uppercase block">💲 Zelle ($ USD)</span>
+          <h4 class="text-xs sm:text-sm font-black text-indigo-900 mt-1 font-mono">$ {{ "{:,.2f}".format(disp_zelle_usd | float) }} USD</h4>
+          <span class="text-[8px] text-indigo-700 block font-semibold">≈ ${{ "{:,.0f}".format(disp_zelle_cop | float) }} COP</span>
+        </div>
+        <!-- 8. Gran Total -->
+        <div class="col-span-2 sm:col-span-4 md:col-span-1 bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-xl p-2.5 shadow">
+          <span class="text-[9px] font-bold text-emerald-300 uppercase block">👑 TOTAL DISPONIBLE</span>
+          <h4 class="text-xs sm:text-sm font-black text-emerald-400 mt-1 font-mono">$ {{ "{:,.2f}".format(gran_total_disponible_cop | float) }}</h4>
+          <span class="text-[8px] text-blue-200 block">Capital Activo COP</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- SALUDO ESPECIAL A DAYANA RUJANO -->
   <div class="max-w-7xl mx-auto px-4 mt-3">
@@ -52,9 +127,9 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% set latest_category, latest_message = messages[-1] %}
-        <div id="flashAlert" class="p-3.5 mb-2 rounded-xl text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm flex items-center justify-between">
-          <span>✅ {{ latest_message }}</span>
-          <button onclick="document.getElementById('flashAlert').style.display='none'" class="text-emerald-900 font-bold hover:text-red-600 px-2 cursor-pointer">✕</button>
+        <div id="flashAlert" class="p-3.5 mb-2 rounded-xl text-sm font-medium {% if latest_category == 'error' %}bg-red-100 text-red-800 border-red-200{% else %}bg-emerald-100 text-emerald-800 border-emerald-200{% endif %} border shadow-sm flex items-center justify-between">
+          <span>{% if latest_category == 'error' %}⚠️{% else %}✅{% endif %} {{ latest_message }}</span>
+          <button onclick="document.getElementById('flashAlert').style.display='none'" class="text-slate-900 font-bold hover:text-red-600 px-2 cursor-pointer">✕</button>
         </div>
       {% endif %}
     {% endwith %}
@@ -105,7 +180,7 @@
   <!-- CONTENEDOR PRINCIPAL -->
   <main class="max-w-7xl mx-auto px-4 py-5 space-y-6">
     
-    <!-- PESTAÑA 1: ENTRADA / COMPRAS (CON RETEFUENTE 2.5%) -->
+    <!-- PESTAÑA 1: ENTRADA / COMPRAS -->
     <div id="pestaña1" class="tab-content">
       <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-5">
         <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -136,7 +211,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">¿Declara Renta? (ReteFuente)</label>
-            <select id="prov_declara_renta" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-bold text-emerald-800 focus:outline-none" title="Si declara y supera 10 UVT, se retiene 2.5% de renta">
+            <select id="prov_declara_renta" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-bold text-emerald-800 focus:outline-none">
               <option value="Si">Sí (Aplica ReteFuente 2.5%)</option>
               <option value="No">No declara</option>
             </select>
@@ -351,7 +426,7 @@
       </section>
     </div>
 
-    <!-- PESTAÑA 3: VENTAS & SERVICIOS (CON FACTURA COLOMBIANA Y RETEFUENTE) -->
+    <!-- PESTAÑA 3: VENTAS & SERVICIOS -->
     <div id="pestaña3" class="tab-content hidden">
       <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-6">
         <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -399,7 +474,6 @@
             </button>
           </div>
 
-          <!-- SECCIÓN DESPLEGABLE PARA AGREGAR SERVICIOS (LIMPIEZA INYECTORES, ETC) -->
           <div id="seccionAgregarServicio" class="hidden bg-indigo-50/70 p-3 rounded-xl border border-indigo-200 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
             <div class="md:col-span-2">
               <label class="block text-[11px] font-bold text-indigo-900 mb-0.5">Concepto del Servicio / Mano de Obra</label>
@@ -490,7 +564,6 @@
               <input type="number" name="dias_plazo" id="dias_plazo" value="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:outline-none">
             </div>
             
-            <!-- TARJETA TOTALES DE VENTA DESGLOSADOS -->
             <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs space-y-0.5">
               <div class="flex justify-between text-slate-600"><span>Base Imponible:</span><strong id="lblBaseVenta">$ 0.00</strong></div>
               <div class="flex justify-between text-blue-800"><span>IVA (19%):</span><strong id="lblIvaVenta">$ 0.00</strong></div>
@@ -498,7 +571,6 @@
               <div class="flex justify-between text-emerald-800 font-extrabold text-sm border-t border-blue-200 pt-1"><span>TOTAL A COBRAR:</span><span id="totalGeneralText">$ 0.00</span></div>
             </div>
 
-            <!-- CANALES DE PAGO MULTI-DIVISA -->
             <div id="divDistribucionPagos" class="md:col-span-4 bg-white p-3.5 rounded-xl border border-blue-200 space-y-2.5">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5">
                 <span class="text-xs font-bold text-blue-900">💳 Canales de Pago Recibidos:</span>
@@ -795,13 +867,13 @@
       </section>
     </div>
 
-    <!-- PESTAÑA 7: CUENTAS POR PAGAR (CON DETALLE COMPLETO DE COMPRA) -->
+    <!-- PESTAÑA 7: CUENTAS POR PAGAR -->
     <div id="pestaña5" class="tab-content hidden space-y-6">
       <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
           <div>
             <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2"><span>💳</span> Control de Cuentas por Pagar (Proveedores)</h2>
-            <p class="text-xs text-slate-500">Facturas neteadas con ReteFuente 2.5%, días de vencimiento y abonos.</p>
+            <p class="text-xs text-slate-500">Facturas neteadas con ReteFuente 2.5%, días de vencimiento y abonos (descuenta de Tesorería automáticamente).</p>
           </div>
           <div class="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl text-right">
             <span class="text-[10px] font-semibold text-amber-700 uppercase block">Total Deuda Proveedores</span>
@@ -835,8 +907,7 @@
                 <td class="p-2.5 text-center space-x-1">
                   <button type="button" onclick="verDetalleFacturaCompra('{{ cxp.nro_factura }}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold cursor-pointer" title="Ver qué productos venían en esta factura">🔍 Detalle</button>
                   {% if cxp.restante > 0 %}
-                    <button onclick="abrirModalAbonoCxP('{{ cxp.id }}', '{{ cxp.restante }}', '{{ cxp.nro_factura }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer">💵 Abonar</button>
-                    <a href="{{ url_for('marcar_pagado_cxp', cxp_id=cxp.id) }}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold inline-block">✓ Pagar</a>
+                    <button onclick="abrirModalAbonoCxP('{{ cxp.id }}', '{{ cxp.restante }}', '{{ cxp.nro_factura }}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer">💵 Abonar / Pagar</button>
                   {% else %}<span class="text-emerald-600 font-bold">Saldado ✓</span>{% endif %}
                 </td>
               </tr>
@@ -1082,7 +1153,7 @@
           </div>
         </div>
 
-        <!-- SECCIÓN 2: VENTAS (CON BLOQUEO SI FACTURA ESTÁ PAGADA COMPLETA) -->
+        <!-- SECCIÓN 2: VENTAS -->
         <div id="seccionReclamoVentas" class="space-y-5 hidden">
           <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
             <h3 class="text-sm font-bold text-slate-800">1. Buscar Factura de Venta para Garantía</h3>
@@ -1183,7 +1254,7 @@
       </section>
     </div>
 
-    <!-- PESTAÑA 11: ARQUEO DE CAJA + SEPARACIÓN DE SERVICIOS Y PRESUPUESTO DE GASTOS -->
+    <!-- PESTAÑA 11: ARQUEO DE CAJA DIARIO -->
     <div id="pestaña11" class="tab-content hidden space-y-6">
       <section class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2.5">
         <div class="bg-white rounded-2xl shadow-sm p-3.5 border border-emerald-300 bg-emerald-50/40">
@@ -1218,7 +1289,7 @@
           <span class="text-[8px] text-blue-700 font-semibold block mt-0.5">≈ ${{ "{:,.0f}".format(caja_zelle_cop | float) }} COP</span>
         </div>
         <div class="col-span-2 sm:col-span-4 md:col-span-1 bg-blue-900 text-white rounded-2xl shadow-md p-3.5">
-          <span class="text-[9px] font-bold text-blue-200 uppercase block">💰 Total (COP)</span>
+          <span class="text-[9px] font-bold text-blue-200 uppercase block">💰 Total Turno (COP)</span>
           <h4 class="text-sm font-extrabold text-emerald-300 mt-1">$ {{ "{:,.2f}".format(caja_gran_total | float) }}</h4>
         </div>
       </section>
@@ -1275,6 +1346,8 @@
                   <option value="Efectivo">💵 Efectivo (Gaveta)</option>
                   <option value="Nequi">🟣 Nequi</option>
                   <option value="Bancolombia">🟡 Bancolombia</option>
+                  <option value="Daviplata">🔴 DaviPlata</option>
+                  <option value="Transferencia">🏛️ Transferencia</option>
                 </select>
               </div>
               <div class="col-span-2">
@@ -1327,13 +1400,13 @@
               <tr class="hover:bg-slate-50">
                 <td class="p-2.5 font-mono text-slate-500">{{ m.fecha.split()[-1] if ' ' in m.fecha else m.fecha }}</td>
                 <td class="p-2.5">
-                  <span class="px-2 py-0.5 rounded-full font-bold text-[10px] {% if m.tipo == 'Egreso Gasto' %}bg-red-100 text-red-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">{{ m.tipo }}</span>
+                  <span class="px-2 py-0.5 rounded-full font-bold text-[10px] {% if 'Egreso' in m.tipo %}bg-red-100 text-red-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">{{ m.tipo }}</span>
                 </td>
                 <td class="p-2.5 font-bold text-blue-900 font-mono">{{ m.referencia }}</td>
                 <td class="p-2.5 text-slate-800 font-medium">{{ m.concepto }}</td>
                 <td class="p-2.5 font-bold text-slate-700">{{ m.metodo }}</td>
-                <td class="p-2.5 text-right font-bold font-mono {% if m.tipo == 'Egreso Gasto' %}text-red-600{% else %}text-emerald-700{% endif %}">
-                  {% if m.tipo == 'Egreso Gasto' %}-{% endif %}$ {{ "{:,.2f}".format(m.monto | float) }}
+                <td class="p-2.5 text-right font-bold font-mono {% if 'Egreso' in m.tipo %}text-red-600{% else %}text-emerald-700{% endif %}">
+                  {% if 'Egreso' in m.tipo %}-{% endif %}$ {{ "{:,.2f}".format(m.monto | float) }}
                 </td>
                 <td class="p-2.5 text-right font-mono text-blue-900 font-bold">
                   {% if m.monto_usd > 0 %}$ {{ "{:,.2f}".format(m.monto_usd | float) }} USD{% else %}-{% endif %}
@@ -1387,7 +1460,6 @@
 
     <!-- PESTAÑA 12: CONCILIACIÓN DIAN, RETEFUENTE, UVT & TAREAS -->
     <div id="pestaña12" class="tab-content hidden space-y-6">
-      <!-- BLOQUE FISCAL DIAN: CONTADORES DE IVA, RETEFUENTE Y UVT -->
       <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
           <div>
@@ -1396,13 +1468,11 @@
             </h2>
             <p class="text-xs text-slate-500">Cruce matemático exacto del Formulario 300 (IVA) y Formulario 350 (Retención en la Fuente).</p>
           </div>
-          <!-- BOTÓN REINICIAR PERÍODO DE IVA -->
           <a href="{{ url_for('liquidar_periodo_iva') }}" onclick="return confirm('¿Confirmas que has presentado y pagado la declaración ante la DIAN? Se reiniciarán los contadores de IVA y ReteFuente a $ 0.00 para el nuevo período.')" class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow flex items-center gap-1.5 cursor-pointer">
             <span>🧹</span> Reiniciar Período Fiscal ($ 0.00)
           </a>
         </div>
 
-        <!-- TARJETAS FISCALES IVA Y RETEFUENTE -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
           <div class="bg-blue-50/60 border border-blue-200 p-3.5 rounded-xl">
             <span class="text-[10px] font-bold text-blue-900 uppercase block">📥 IVA Descontable (Compras)</span>
@@ -1437,7 +1507,6 @@
           </div>
         </div>
 
-        <!-- CONFIGURADOR DE UVT Y METAS DE PRESUPUESTO -->
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2">
           <form action="{{ url_for('actualizar_configuracion_uvt') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
             <div>
@@ -1461,7 +1530,6 @@
         </div>
       </section>
 
-      <!-- SECCIÓN BLOC DE TAREAS Y OBLIGACIONES -->
       <section class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-5">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
           <div>
@@ -1475,7 +1543,6 @@
           </span>
         </div>
 
-        <!-- FORMULARIO AGREGAR TAREA -->
         <form action="{{ url_for('registrar_tarea') }}" method="POST" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
             <div class="md:col-span-2">
@@ -1522,7 +1589,6 @@
           </div>
         </form>
 
-        <!-- TABLA OBLIGACIONES PENDIENTES CON ALERTAS DE VENCIMIENTO -->
         <div class="space-y-3">
           <h4 class="text-xs font-bold text-blue-900 uppercase">Obligaciones Pendientes (Por Orden de Urgencia)</h4>
           {% if tareas_pendientes_data %}
@@ -1575,7 +1641,6 @@
           {% endif %}
         </div>
 
-        <!-- HISTORIAL TAREAS REALIZADAS -->
         {% if tareas_realizadas_data %}
         <div class="space-y-3 pt-3 border-t border-slate-100">
           <h4 class="text-xs font-bold text-slate-400 uppercase">Obligaciones Cumplidas ({{ tareas_realizadas_data|length }})</h4>
@@ -1611,6 +1676,55 @@
     </div>
 
   </main>
+
+  <!-- ======================================================= -->
+  <!-- MODAL PARA DEFINIR INVERSIÓN / SALDOS INICIALES         -->
+  <!-- ======================================================= -->
+  <div id="modalSaldosIniciales" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4" onclick="cerrarModalSaldosIniciales()">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl relative space-y-4" onclick="event.stopPropagation()">
+      <button type="button" onclick="cerrarModalSaldosIniciales()" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <div>
+        <h3 class="font-extrabold text-blue-950 text-base flex items-center gap-2"><span>⚙️</span> Inversión y Saldos Iniciales</h3>
+        <p class="text-xs text-slate-500">Coloca el dinero base con el que arrancas en cada bolsillo o cuenta bancaria.</p>
+      </div>
+      <form action="{{ url_for('actualizar_saldos_iniciales') }}" method="POST" class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="block font-bold text-slate-700 mb-0.5">💵 Efectivo Inicial (COP)</label>
+            <input type="number" step="any" name="saldo_ini_efectivo" value="{{ config.get('saldo_ini_efectivo', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-blue-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-purple-700 mb-0.5">🟣 Nequi Inicial (COP)</label>
+            <input type="number" step="any" name="saldo_ini_nequi" value="{{ config.get('saldo_ini_nequi', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-purple-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-amber-700 mb-0.5">🟡 Bancolombia Inicial (COP)</label>
+            <input type="number" step="any" name="saldo_ini_bancolombia" value="{{ config.get('saldo_ini_bancolombia', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-amber-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-red-700 mb-0.5">🔴 DaviPlata Inicial (COP)</label>
+            <input type="number" step="any" name="saldo_ini_daviplata" value="{{ config.get('saldo_ini_daviplata', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-red-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-blue-700 mb-0.5">🏛️ Transferencias / Otros (COP)</label>
+            <input type="number" step="any" name="saldo_ini_transferencia" value="{{ config.get('saldo_ini_transferencia', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-blue-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-teal-700 mb-0.5">💵 Dólar Físico Inicial ($ USD)</label>
+            <input type="number" step="any" name="saldo_ini_dolar_efectivo" value="{{ config.get('saldo_ini_dolar_efectivo', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-teal-900 bg-slate-50 focus:outline-none">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block font-bold text-indigo-700 mb-0.5">💲 Zelle Inicial ($ USD)</label>
+            <input type="number" step="any" name="saldo_ini_zelle" value="{{ config.get('saldo_ini_zelle', 0) }}" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-indigo-900 bg-slate-50 focus:outline-none">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="cerrarModalSaldosIniciales()" class="bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-xl text-xs shadow cursor-pointer">💾 Guardar Saldos Base</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL GESTIÓN DE HASTA 3 FOTOS -->
   <div id="modalFotosRepuesto" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4" onclick="cerrarModalFotos()">
@@ -1664,7 +1778,7 @@
     </div>
   </div>
 
-  <!-- VISOR DE FOTOS EN ALTA RESOLUCIÓN (ZOOM / LIGHTBOX) -->
+  <!-- VISOR DE FOTOS EN ALTA RESOLUCIÓN -->
   <div id="modalVisorFotoGrande" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden z-[60] flex flex-col items-center justify-center p-4" onclick="cerrarFotoGrande()">
     <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
       <button type="button" onclick="cerrarFotoGrande()" class="absolute -top-12 right-0 bg-white/20 hover:bg-white text-white hover:text-black w-10 h-10 rounded-full font-bold flex items-center justify-center cursor-pointer transition-colors shadow-lg text-lg">✕</button>
@@ -1735,6 +1849,35 @@
     </div>
   </div>
 
+  <!-- MODAL ABONO / PAGO CXP (DESCUENTA DE TESORERÍA) -->
+  <div id="modalAbonoCxP" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative space-y-4">
+      <button onclick="cerrarModalAbonoCxP()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
+      <h3 class="font-bold text-blue-900 text-base" id="tituloModalCxP">Abono o Pago a Proveedor</h3>
+      <p id="subtModalCxP" class="text-xs text-slate-500"></p>
+      <form id="formRegistrarAbonoCxP" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Monto a Pagar ($ COP)</label>
+          <input type="number" step="any" name="monto_abono" id="inputMontoAbonoCxP" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-emerald-700 focus:outline-none" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Pagar Desde (Canal / Bolsillo)</label>
+          <select name="metodo_pago_cxp" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-blue-900 bg-white focus:outline-none">
+            <option value="Bancolombia">🟡 Bancolombia</option>
+            <option value="Efectivo">💵 Efectivo (Gaveta)</option>
+            <option value="Nequi">🟣 Nequi</option>
+            <option value="Daviplata">🔴 DaviPlata</option>
+            <option value="Transferencia">🏛️ Transferencias Generales</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalAbonoCxP()" class="bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
+          <button type="submit" class="bg-blue-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">Confirmar Pago</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL MEJORES PRODUCTOS -->
   <div id="modalDetalleMejores" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl relative space-y-4 max-h-[80vh] overflow-y-auto">
@@ -1756,25 +1899,6 @@
       <div class="flex justify-end pt-2">
         <button type="button" onclick="cerrarModalDetalleMejores()" class="bg-blue-900 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">Cerrar</button>
       </div>
-    </div>
-  </div>
-
-  <!-- MODAL ABONO CXP -->
-  <div id="modalAbonoCxP" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative space-y-4">
-      <button onclick="cerrarModalAbonoCxP()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center cursor-pointer">✕</button>
-      <h3 class="font-bold text-blue-900 text-base" id="tituloModalCxP">Registrar Abono a Proveedor</h3>
-      <p id="subtModalCxP" class="text-xs text-slate-500"></p>
-      <form id="formRegistrarAbonoCxP" method="POST" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Monto a Abonar ($ COP)</label>
-          <input type="number" step="any" name="monto_abono" id="inputMontoAbonoCxP" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-emerald-700 focus:outline-none" required>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="cerrarModalAbonoCxP()" class="bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">Cancelar</button>
-          <button type="submit" class="bg-blue-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow cursor-pointer">Guardar Abono</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -1823,7 +1947,7 @@
     </div>
   </div>
 
-  <!-- DATOS BASE EN MEMORIA SEGURA PARA ELIMINAR ERRORES EN VS CODE -->
+  <!-- DATOS BASE EN MEMORIA -->
   <script>
     const INVENTARIO_DB = {{ inventario|tojson }};
     const MEJORES_PROD_DB = {{ mejores_productos_data|tojson }};
@@ -1866,6 +1990,14 @@
       cambiarPestaña(tabUrl || tabStorage || 'pestaña1');
     });
 
+    // MODAL DE SALDOS INICIALES
+    function abrirModalSaldosIniciales() {
+      document.getElementById('modalSaldosIniciales').classList.remove('hidden');
+    }
+    function cerrarModalSaldosIniciales() {
+      document.getElementById('modalSaldosIniciales').classList.add('hidden');
+    }
+
     // VISOR DE FOTOS EN ALTA RESOLUCIÓN
     function verFotoGrande(srcUrl, titulo) {
       if (!srcUrl || srcUrl.trim() === '' || srcUrl.endsWith('/')) return;
@@ -1884,6 +2016,7 @@
         cerrarFotoGrande();
         cerrarModalFotos();
         cerrarDetalleFacturaCompra();
+        cerrarModalSaldosIniciales();
       }
     });
 
@@ -1919,7 +2052,6 @@
       document.getElementById('modalFotosRepuesto').classList.add('hidden');
     }
 
-    // MODAL VER DETALLE COMPLETO DE FACTURA DE COMPRA
     async function verDetalleFacturaCompra(nroFactura) {
       try {
         const res = await fetch('/detalle_factura_proveedor/' + encodeURIComponent(nroFactura));
@@ -1952,7 +2084,6 @@
       setTimeout(() => { window.location.href = "{{ url_for('index') }}?tab=pestaña6"; }, 800);
     }
 
-    // SERVICIOS TÉCNICOS (LIMPIEZA DE INYECTORES, ETC.)
     function toggleSeccionServicios() {
       const sec = document.getElementById('seccionAgregarServicio');
       sec.classList.toggle('hidden');
@@ -1978,7 +2109,6 @@
       document.getElementById('seccionAgregarServicio').classList.add('hidden');
     }
 
-    // MODALIDAD DE PAGO EN VENTAS Y CRUCE DE RETEFUENTE
     function cambiarModalidadPago() {
       const tipo = document.getElementById('tipo_pago').value;
       const divPagos = document.getElementById('divDistribucionPagos');
@@ -2045,7 +2175,6 @@
     }
 
     function calcularDistribucionCanales() {
-      // Cálculo tributario en vivo
       const esAgente = document.getElementById('es_agente_retencion').value === 'Si';
       const baseImp = totalBrutoVenta / 1.19;
       const iva = totalBrutoVenta - baseImp;
@@ -2085,7 +2214,6 @@
       }
     }
 
-    // PESTAÑA 10: RECLAMOS
     function toggleSubSeccionReclamos(tipo) {
       const btnCompras = document.getElementById('btnSubTabCompras');
       const btnVentas = document.getElementById('btnSubTabVentas');
@@ -2182,7 +2310,6 @@
         document.getElementById('reclamo_v_factura_id').value = data.factura_id;
         document.getElementById('reclamo_v_cliente_nombre').value = data.cliente_nombre;
 
-        // BLOQUEO INTELIGENTE SI ESTÁ PAGADA COMPLETA
         const optDescuento = document.getElementById('optDescuentoVenta');
         if(data.estado_pago === 'Pagado' || data.restante <= 0) {
           optDescuento.disabled = true;
@@ -2226,7 +2353,6 @@
       document.getElementById('panelOpcionesVenta').classList.remove('hidden');
     }
 
-    // CATÁLOGO ENTRADA
     async function buscarRepuestosCatalogoReal() {
       const q = document.getElementById('inputBuscarCatalogo').value.trim();
       const contenedor = document.getElementById('resultadosCatalogo');
@@ -2342,7 +2468,6 @@
       document.getElementById('formFinalizarCompra').submit();
     }
 
-    // VENTAS Y FACTURACIÓN
     async function buscarRepuestosEnTiempoReal() {
       const q = document.getElementById('inputBuscadorVenta').value.trim();
       const contenedor = document.getElementById('resultadosBusqueda');
@@ -2495,7 +2620,6 @@
       } catch(e) { console.error(e); }
     }
 
-    // PRESUPUESTOS MULTIDIVISA
     async function buscarRepuestosPresupuestoReal() {
       const q = document.getElementById('inputBuscadorPresupuesto').value.trim();
       const contenedor = document.getElementById('resultadosPresupuesto');
@@ -2593,7 +2717,6 @@
       document.getElementById('formPresupuestoMultidivisa').submit();
     }
 
-    // MODALES AUXILIARES CON ÍNDICE SEGURO
     function abrirModalDetalleMejoresPorIdx(idx) {
       const prod = MEJORES_PROD_DB[idx];
       if(!prod) return;
