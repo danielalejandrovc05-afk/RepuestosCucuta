@@ -36,7 +36,7 @@ def init_db():
         )
     ''')
     cursor.execute("INSERT OR IGNORE INTO usuarios (usuario, password, nombre) VALUES (?, ?, ?)", 
-                   ('DayAna2026', 'DiegoyGabriel', 'Dayana Rujano'))
+                   ('admin', 'merp2026', 'Dayana Rujano'))
 
     # 2. CONFIGURACIÓN GENERAL DEL NEGOCIO Y SALDOS INICIALES
     cursor.execute('''
@@ -767,9 +767,7 @@ def index():
     caja_efectivo_neto = max(0.0, caja_efectivo_ing - caja_efectivo_egr)
     caja_gran_total = caja_efectivo_neto + caja_nequi + caja_bancolombia + caja_daviplata + caja_transferencia + caja_zelle_cop + caja_dolar_efectivo_cop
 
-    # ========================================================
-    # NUEVO: CÁLCULO DE TESORERÍA HISTÓRICA / TOTAL DISPONIBLE ("BAJO EL COLCHÓN")
-    # ========================================================
+    # CÁLCULO DE TESORERÍA HISTÓRICA / TOTAL DISPONIBLE
     saldo_ini_efectivo = float(config.get('saldo_ini_efectivo', 0))
     saldo_ini_nequi = float(config.get('saldo_ini_nequi', 0))
     saldo_ini_bancolombia = float(config.get('saldo_ini_bancolombia', 0))
@@ -791,7 +789,7 @@ def index():
     disp_zelle_usd = saldo_ini_zelle_usd
     disp_zelle_cop = 0.0
     
-    tasa_actual = 3250.0  # Tasa base por defecto
+    tasa_actual = 3250.0
 
     for mov_t, mov_m, mov_val, mov_usd, mov_tc in todos_los_movimientos:
         val_cop = float(mov_val or 0.0)
@@ -823,7 +821,6 @@ def index():
                                  disp_daviplata + disp_transferencia + 
                                  disp_dolar_efectivo_cop + disp_zelle_cop)
 
-    # Presupuesto de gastos
     presup_fijos_total = float(config.get('presupuesto_fijos', 2500000))
     presup_vars_total = float(config.get('presupuesto_variables', 1200000))
     presup_fijos_restante = max(0.0, presup_fijos_total - gastos_fijos_ejecutados)
@@ -930,7 +927,43 @@ def index():
                            gran_total_disponible_cop=gran_total_disponible_cop)
 
 
-# NUEVO: ACTUALIZAR INVERSIÓN / SALDOS INICIALES DE TESORERÍA
+# NUEVA RUTA: REGISTRAR INVENTARIO INICIAL / VIEJO (NO GENERA DEUDA NI IMPUESTOS)
+@app.route('/registrar_inventario_inicial', methods=['POST'])
+def registrar_inventario_inicial():
+    codigo_interno = request.form.get('codigo_interno', '').strip()
+    descripcion = request.form.get('descripcion', '').strip()
+    categoria = request.form.get('categoria', 'Carro').strip()
+    codigo_barras = request.form.get('codigo_barras', '').strip()
+    codigo_opcional = request.form.get('codigo_opcional', '').strip()
+    serial = request.form.get('serial', '').strip()
+    garantia = request.form.get('garantia', 'Sin garantía').strip()
+    try: costo = float(request.form.get('costo', 0) or 0)
+    except: costo = 0.0
+    try: precio_venta = float(request.form.get('precio_venta', 0) or 0)
+    except: precio_venta = 0.0
+    try: cantidad = float(request.form.get('stock', 1) or 1)
+    except: cantidad = 1.0
+
+    if not codigo_interno or not descripcion or costo <= 0:
+        flash('Completa al menos Código Interno, Descripción y Costo válido.', 'error')
+        return redirect(url_for('index', tab='pestaña1'))
+
+    fecha_str = datetime.now().strftime('%d/%m/%Y')
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO inventario 
+        (codigo_interno, descripcion, categoria, codigo_barras, codigo_opcional, serial, nro_factura_prov, nro_control, costo, precio_venta, stock, proveedor, dias_credito, garantia, imagen, imagen2, imagen3, fecha_registro, stock_en_reclamo)
+        VALUES (?, ?, ?, ?, ?, ?, 'INV-INICIAL', 'S/N', ?, ?, ?, 'Inventario Inicial', 0, ?, '', '', '', ?, 0)
+    ''', (codigo_interno, descripcion, categoria, codigo_barras, codigo_opcional, serial, costo, precio_venta, cantidad, garantia, fecha_str))
+    conn.commit()
+    conn.close()
+
+    flash(f'¡Mercancía [{codigo_interno}] cargada exitosamente a Inventario sin generar deuda ni impuestos!', 'success')
+    return redirect(url_for('index', tab='pestaña1'))
+
+
+# ACTUALIZAR INVERSIÓN / SALDOS INICIALES DE TESORERÍA
 @app.route('/actualizar_saldos_iniciales', methods=['POST'])
 def actualizar_saldos_iniciales():
     s_efectivo = request.form.get('saldo_ini_efectivo', '0').strip()
@@ -1096,7 +1129,7 @@ def descargar_copia_seguridad():
     return send_file(buffer, as_attachment=True, download_name=nombre_archivo, mimetype='application/x-sqlite3')
 
 
-# REGISTRAR GASTO DE CAJA CHICA CON CLASIFICACIÓN (FIJO / VARIABLE)
+# REGISTRAR GASTO DE CAJA CHICA
 @app.route('/registrar_gasto_caja', methods=['POST'])
 def registrar_gasto_caja():
     concepto = request.form.get('concepto_gasto', '').strip()
@@ -1292,7 +1325,7 @@ def descargar_pdf_cierre(cierre_id):
     return send_file(buffer, as_attachment=True, download_name=f"Cierre_Caja_{cierre_id}.pdf", mimetype='application/pdf')
 
 
-# EMISIÓN DE FACTURA (CON OPCIÓN DE RETEFUENTE Y SERVICIOS)
+# EMISIÓN DE FACTURA
 @app.route('/emitir_factura', methods=['POST'])
 def emitir_factura():
     config = get_config()
@@ -2027,7 +2060,7 @@ def actualizar_precio(id):
     return redirect(url_for('index', tab='pestaña2'))
 
 
-# PAGO A PROVEEDOR (CXP): DESCUENTA DE CAJA / TESORERÍA AUTOMÁTICAMENTE
+# PAGO A PROVEEDOR (CXP): DESCUENTA DE CAJA / TESORERÍA
 @app.route('/marcar_pagado_cxp/<int:cxp_id>', methods=['GET', 'POST'])
 def marcar_pagado_cxp(cxp_id):
     metodo = request.form.get('metodo_pago_cxp', 'Bancolombia') if request.method == 'POST' else 'Bancolombia'
